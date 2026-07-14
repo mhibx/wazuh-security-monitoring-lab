@@ -1,18 +1,29 @@
-Objective
+# Wazuh Installation
 
-Install Wazuh Server on Ubuntu 24.04.
+## Objective
 
-Deployment Steps
+Deploy an all-in-one Wazuh server using the official installation script.
 
-- Install dependencies
-- Install Wazuh
-- Verify services
-- Access Dashboard
+## Installation Method
 
-Verification
+Official Wazuh Quickstart
 
-systemctl status wazuh-manager
+```bash
+curl -sO https://packages.wazuh.com/...
+```
 
-Result
+## Components Installed
 
-Dashboard successfully accessible.
+- Wazuh Manager
+- Wazuh Dashboard
+- Wazuh Indexer
+
+## Verification
+
+- Dashboard accessible
+- Services running
+- Indexer healthy
+
+## Result
+
+The SIEM environment was successfully deployed and ready for endpoint integration.
