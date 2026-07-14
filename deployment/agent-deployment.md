@@ -1,23 +1,39 @@
-Objective
+# Windows Agent Deployment
 
-Deploy Windows 11 Agent.
+## Objective
 
-Configuration
+Connect a Windows endpoint to the Wazuh Manager.
 
-Manager IP
+## Installation
 
+Generated installer from Wazuh Dashboard.
+
+## Initial Problem
+
+Agent failed to appear in the dashboard.
+
+## Troubleshooting
+
+- Network connectivity
+- Port verification
+- Firewall verification
+- Agent configuration
+- Service restart
+
+## Root Cause
+
+Incorrect Manager IP
+
+```
+0.0.0.0
+```
+
+Corrected to
+
+```
 192.168.1.7
+```
 
-Agent Status
+## Result
 
-Active
-
-Verification
-
-Dashboard
-Agent Connected
-
-Lessons Learned
-
-Common issue:
-Firewall blocked port 1514.
+Agent successfully connected and appeared as Active.
