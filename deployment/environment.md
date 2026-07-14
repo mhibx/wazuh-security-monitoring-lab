@@ -1,16 +1,22 @@
-Lab Overview
+# Lab Environment
 
-Server
+## Wazuh Server
 
-Ubuntu 24.04
-8 GB RAM
-2 vCPU
+| Component | Value |
+|------------|-------|
+| Operating System | Ubuntu 24.04.4 LTS |
+| RAM | 16 GB |
+| Role | Manager + Indexer + Dashboard |
+| IP Address | 192.168.1.7 |
 
-Windows Endpoint
+## Endpoint
 
-Windows 11 Pro
-Wazuh Agent
+| Component | Value |
+|------------|-------|
+| Operating System | Windows 11 Pro |
+| Device | Lenovo ThinkPad X390 |
+| Agent | Wazuh Agent |
 
-Network
+## Objective
 
-192.168.1.7
+Deploy a functional SIEM environment for security monitoring and endpoint log collection.
