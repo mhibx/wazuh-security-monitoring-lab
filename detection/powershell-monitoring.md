@@ -57,10 +57,13 @@ The following detections were observed:
 
 1. Sysmon Installation on Windows Endpoint
 ![Sysmon Installation](../screenshots/sysmon-01-wazuh-install.png)
+
 2. Powershell Command Execution
 ![Command Execution on Powershell](../screenshots/sysmon-02-wazuh-commandexec.png)
+
 3. Wazuh Threat Hunt Dashboard
 ![Wazuh Threat Hunt](../screenshots/sysmon-03-wazuh-threathunt.png)
+
 4. Threat Hunt Details on Detection
 ![Threat Details](../screenshots/sysmon-04-wazuh-threatdetails.png)
 
