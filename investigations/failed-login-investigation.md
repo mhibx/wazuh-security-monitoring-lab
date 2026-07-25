@@ -29,7 +29,7 @@ The goal is to understand how Wazuh collects, correlates, and presents authentic
 5. Wazuh Manager triggered Rule 60122.
 6. Alert appeared in the Threat Hunting dashboard.
 
-![Endpoint Dashboard](../screenshots/failed-01-endpointdashboard.png)
+![Endpoint Dashboard](../screenshots/failed-01-wazuh-endpointdashboard.png)
 
 ---
 
@@ -43,7 +43,7 @@ The investigation confirmed:
 - Correct rule triggering
 - Real-time dashboard visualization
 
-![Event Analysis](../screenshots/failed-02-eventanalysis.png)
+![Event Analysis](../screenshots/failed-02-wazuh-eventanalysis.png)
 
 ---
 
