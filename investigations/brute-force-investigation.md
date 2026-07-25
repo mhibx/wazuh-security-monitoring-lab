@@ -14,6 +14,8 @@ Multiple consecutive invalid credentials were entered during Windows logon.
 
 This generated repeated Windows Event ID 4625 entries.
 
+![Threat Hunt Page](../screenshots/brute-01-wazuh-threathunt.png)
+
 ---
 
 ## Evidence
@@ -24,6 +26,8 @@ This generated repeated Windows Event ID 4625 entries.
 | Category | authentication_failed |
 | Detection | Repeated Failed Login |
 | Endpoint | WIN11 |
+
+![Threat Hunt Details](../screenshots/brute-02-wazuh-threatdetails.png)
 
 ---
 
