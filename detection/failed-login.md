@@ -51,7 +51,7 @@ The following activities were successfully detected:
 
 ## Screenshots
 
-> Add screenshots in `/screenshots`
+![Failed Login Alert](../screenshots/failed-01-wazuh-endpointdashboard.png)
 
 - Failed Login Alert
 - Event Details
