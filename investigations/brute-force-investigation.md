@@ -27,8 +27,6 @@ This generated repeated Windows Event ID 4625 entries.
 | Detection | Repeated Failed Login |
 | Endpoint | WIN11 |
 
-![Threat Hunt Details](../screenshots/brute-02-wazuh-threatdetails.png)
-
 ---
 
 ## Investigation Findings
@@ -51,6 +49,8 @@ Observed indicators included:
 - High alert frequency
 - Authentication spikes
 - Repeated security events
+
+![Threat Hunt Details](../screenshots/brute-02-wazuh-threatdetails.png)
 
 ---
 
