@@ -8,7 +8,7 @@ Connect a Windows endpoint to the Wazuh Manager.
 
 Generated installer from Wazuh Dashboard.
 
-![Agent Deploy](../screenshots/setup-05-agentdeploy.png)
+![Agent Deploy](../screenshots/setup-05-wazuh-agentdeploy.png)
 
 ## Initial Problem
 
@@ -40,4 +40,5 @@ Corrected to
 ## Result
 
 Agent successfully connected and appeared as Active.
-![Endpoint Monitor](../screenshots/setup-08-endpointmonitor.png)
+
+![Endpoint Monitor](../screenshots/setup-08-wazuh-endpointmonitor.png)
