@@ -55,12 +55,13 @@ The following detections were observed:
 
 ## Screenshots
 
-> Add screenshots in `/screenshots`
+![Sysmon Installation](../screenshots/sysmon-01-wazuh-install.png)
 
-- Sysmon Installation
-- Wazuh Dashboard
-- Threat Hunting
-- Document Details
+![Command Execution on Powershell](../screenshots/sysmon-02-wazuh-commandexec.png)
+
+![Wazuh Threat Hunt](../screenshots/sysmon-03-wazuh-threathunt.png)
+
+![Threat Details](../screenshots/sysmon-04-wazuh-threatdetails.png)
 
 ---
 
