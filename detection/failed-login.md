@@ -51,7 +51,7 @@ The following activities were successfully detected:
 
 ## Screenshots
 
-![Failed Login Alert](../screenshots/failed-01-wazuh-endpointdashboard.png)
+![Failed Login Alert](../screenshots/login-01-wazuh-failedlogin.png)
 
 - Failed Login Alert
 - Event Details
