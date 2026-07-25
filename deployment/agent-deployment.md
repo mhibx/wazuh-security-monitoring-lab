@@ -8,6 +8,8 @@ Connect a Windows endpoint to the Wazuh Manager.
 
 Generated installer from Wazuh Dashboard.
 
+![Agent Deploy](../screenshots/setup-05-agentdeploy.png)
+
 ## Initial Problem
 
 Agent failed to appear in the dashboard.
@@ -19,7 +21,8 @@ Agent failed to appear in the dashboard.
 - Firewall verification
 - Agent configuration
 - Service restart
-
+![Firewall Troubleshoot](../screenshots/setup-06-wazuh-troublefirewall.png)
+![Service Restart](../screenshots/setup-07-wazuh-troublereset.png)
 ## Root Cause
 
 Incorrect Manager IP
@@ -37,3 +40,4 @@ Corrected to
 ## Result
 
 Agent successfully connected and appeared as Active.
+![Endpoint Monitor](../screenshots/setup-08-endpointmonitor.png)
