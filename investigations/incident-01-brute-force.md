@@ -85,8 +85,6 @@ Result
 
 - TCP/445 is open
 
-Screenshot
-
 ---
 
 ## Step 2 — Failed SMB Authentication
@@ -95,9 +93,8 @@ Screenshot
 smbclient -L //192.168.1.4 -U kali-attacker
 ```
 
-```
+Screenshot
 ![Attacker Terminal](../screenshots/smbrute-01-single-kaliterminal.png)
-```
 
 Result
 
@@ -121,10 +118,7 @@ Rule Information
 | Description | Logon Failure - Unknown user or bad password |
 
 Screenshot
-
-```
 ![Wazuh Discover](../screenshots/smbrute-04-single-wazuhdiscover.png)
-```
 
 ---
 
@@ -187,12 +181,9 @@ SubStatus
 ```
 
 Screenshots
-
-```
 ![Event Viewer 1](../screenshots/smbrute-02-single-eventview.png)
 
 ![Event Viewer 2](../screenshots/smbrute-03-single-eventview.png)
-```
 
 ---
 
@@ -211,12 +202,9 @@ Alert Information
 | Username | kali-attacker |
 
 Screenshots
-
-```
 ![Wazuh Detail 1](../screenshots/smbrute-05-single-wazuhdetail1.png)
 
 ![Wazuh Detail 2](../screenshots/smbrute-06-single-wazuhdetail2.png)
-```
 
 ---
 
