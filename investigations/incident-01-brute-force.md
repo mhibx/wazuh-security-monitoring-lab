@@ -87,16 +87,16 @@ Result
 
 Screenshot
 
-```
-screenshots/02-kali-smb-authentication.png
-```
-
 ---
 
 ## Step 2 — Failed SMB Authentication
 
 ```bash
 smbclient -L //192.168.1.4 -U kali-attacker
+```
+
+```
+![Attacker Terminal](../screenshots/smbrute-01-single-kaliterminal.png)
 ```
 
 Result
@@ -119,12 +119,11 @@ Rule Information
 |------|-------|
 | Rule ID | 60122 |
 | Description | Logon Failure - Unknown user or bad password |
-| Severity | 5 |
 
 Screenshot
 
 ```
-screenshots/03-wazuh-discover-alert.png
+![Wazuh Discover](../screenshots/smbrute-04-single-wazuhdiscover.png)
 ```
 
 ---
@@ -190,9 +189,9 @@ SubStatus
 Screenshots
 
 ```
-screenshots/05-eventviewer-general.png
+![Event Viewer 1](../screenshots/smbrute-02-single-eventview.png)
 
-screenshots/06-eventviewer-details.png
+![Event Viewer 2](../screenshots/smbrute-03-single-eventview.png)
 ```
 
 ---
@@ -214,7 +213,9 @@ Alert Information
 Screenshots
 
 ```
-screenshots/04-wazuh-alert-details.png
+![Wazuh Detail 1](../screenshots/smbrute-05-single-wazuhdetail1.png)
+
+![Wazuh Detail 2](../screenshots/smbrute-06-single-wazuhdetail2.png)
 ```
 
 ---
