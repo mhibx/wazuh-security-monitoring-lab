@@ -107,7 +107,7 @@ Custom Rule 100100
 
 ## Script Execution
 
-*(Insert screenshot)*
+![Script Execution](../screenshots/smbrute-01-multi-scriptexec.png)
 
 ---
 
@@ -155,6 +155,7 @@ Description
 Logon Failure - Unknown user or bad password
 ```
 
+![Event View](../screenshots/smbrute-02-multi-scripteventview.png)
 ---
 
 ## Custom Detection
@@ -194,6 +195,8 @@ T1110 - Brute Force
 |10:56:22|4625|
 |10:56:26|4625|
 |10:56:30|Custom Rule 100100 Triggered|
+
+![Wazuh Discover](../screenshots/smbrute-03-multi-wazuhdiscover.png)
 
 ---
 
