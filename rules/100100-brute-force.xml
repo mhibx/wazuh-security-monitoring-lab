@@ -1,0 +1,21 @@
+<group name="windows,authentication,">
+
+  <rule id="100100" level="10">
+
+    <if_matched_sid>60122</if_matched_sid>
+
+    <frequency>5</frequency>
+
+    <timeframe>60</timeframe>
+
+    <description>Possible SMB Brute Force Attack Detected</description>
+
+    <group>bruteforce,windows,authentication</group>
+
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+
+  </rule>
+
+</group>
