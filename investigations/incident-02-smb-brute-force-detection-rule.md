@@ -248,6 +248,6 @@ scripts/
 
 screenshots/
 ├── smbrute-01-multi-scriptexec.png
-├── smbrute-02-multi-eventview.png.png
-└── smbrute-03-multi-wazuhdiscover.png.png
+├── smbrute-02-multi-eventview.png
+└── smbrute-03-multi-wazuhdiscover.png
 ```
