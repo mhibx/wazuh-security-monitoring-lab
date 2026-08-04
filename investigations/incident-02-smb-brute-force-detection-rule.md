@@ -155,7 +155,7 @@ Description
 Logon Failure - Unknown user or bad password
 ```
 
-![Event View](../screenshots/smbrute-02-multi-scripteventview.png)
+![Event View](../screenshots/smbrute-02-multi-eventview.png)
 
 ---
 
