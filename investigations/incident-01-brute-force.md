@@ -270,6 +270,56 @@ Potential ATT&CK Mapping
 
 ---
 
+## Investigation Notes
+
+During the implementation of this lab, multiple SMB clients were evaluated to simulate failed authentication attempts against the Windows endpoint.
+
+### smbclient
+
+The `smbclient` utility successfully initiated an SMB authentication request using an invalid username, generating:
+
+- Windows Security Event ID 4625
+- Wazuh Rule ID 60122
+- Logon Type 3 (Network Logon)
+
+This became the primary method used to validate the SIEM detection pipeline.
+
+### Hydra
+
+Hydra was tested to automate SMB password guessing but returned:
+
+[ERROR] invalid reply from target smb://192.168.1.4:445/
+![Hydra Fail](../screenshots/smbrute-01-fail-hydra.png)
+
+No repeated authentication events were generated.
+
+### NetExec
+
+NetExec successfully fingerprinted the target:
+
+- Windows 11 Build 26100
+- SMB Signing Enabled
+- SMBv1 Disabled
+
+However, the authentication process failed with:
+
+Connection Error:
+The NETBIOS connection with the remote host timed out
+![Netexec Fail](../screenshots/smbrute-02-fail-netexec.png)
+
+Windows SMB Server logs recorded additional events:
+
+- Event ID 551 (Smb2SessionAuthFailure)
+- Event ID 1009 (SrvSessionAnonymousAccessDenied)
+
+![SMB Eventview](../screenshots/smbrute-03-fail-eventview.png)
+
+The authentication session terminated before username validation, preventing the generation of repeated Event ID 4625 entries.
+
+Further investigation is required to determine whether this behavior is caused by compatibility issues between NetExec/Hydra and Windows 11 Build 26100 SMB implementation.
+
+---
+
 # Lessons Learned
 
 Through this lab I learned how to:
@@ -280,13 +330,34 @@ Through this lab I learned how to:
 - Understand the relationship between Windows Event Viewer and SIEM
 - Perform basic SOC-style investigation
 
+After attempting brute force on SMB
+- A successful TCP connection does not guarantee a successful authentication session.
+- SMB authentication failures can be recorded in multiple Windows log channels.
+- Windows Security logs (Event ID 4625) and Microsoft-Windows-SMBServer logs provide complementary information.
+- Modern Windows SMB implementations may behave differently with automated authentication tools.
+- Security investigations often require validating assumptions using multiple tools instead of relying on a single utility.
+- Troubleshooting unexpected tool behavior is an important part of defensive security engineering.
+
 ---
 
 # Future Improvements
 
-- Simulate SMB brute-force using Hydra
-- Create custom Wazuh correlation rules
-- Generate higher severity alerts after multiple failed logins
-- Integrate Sigma rules
-- Automate incident response using Active Response
+- Investigate SMB authentication behavior on Windows 11 Build 26100.
+- Test additional SMB authentication tools.
+- Create custom Wazuh detection rules for repeated failed logon attempts.
+- Simulate password spraying and brute-force attacks after resolving tool compatibility.
+- Correlate Windows Security (4625) and SMB Server events into a higher-confidence alert.
+- Visualize authentication trends using Wazuh dashboards.
 
+---
+
+## Repository Status
+
+Current Status: ✅ Baseline Detection Completed
+
+- SMB connectivity verified
+- Windows Event ID 4625 collected
+- Wazuh Rule 60122 validated
+- Event correlation documented
+
+Advanced attack simulation (password spraying / brute force) is planned for a future iteration after SMB client compatibility testing.
