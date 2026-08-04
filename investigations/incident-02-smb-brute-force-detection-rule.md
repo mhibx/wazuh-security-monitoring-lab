@@ -139,6 +139,8 @@ Source IP
 192.168.1.7
 ```
 
+![Event View](../screenshots/smbrute-02-multi-eventview.png)
+
 ---
 
 ## Default Detection
@@ -154,8 +156,6 @@ Description
 ```
 Logon Failure - Unknown user or bad password
 ```
-
-![Event View](../screenshots/smbrute-02-multi-eventview.png)
 
 ---
 
