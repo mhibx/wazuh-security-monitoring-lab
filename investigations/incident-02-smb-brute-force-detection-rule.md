@@ -156,6 +156,7 @@ Logon Failure - Unknown user or bad password
 ```
 
 ![Event View](../screenshots/smbrute-02-multi-scripteventview.png)
+
 ---
 
 ## Custom Detection
