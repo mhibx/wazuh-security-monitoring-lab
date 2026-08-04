@@ -233,3 +233,21 @@ This lab also demonstrated how custom detection engineering can extend Wazuh bey
 - MITRE ATT&CK Mapping
 - SIEM Validation
 - Security Monitoring
+
+# Repository Artifacts
+
+```
+investigations/
+└── incident-02-smb-brute-force-detection-rule.md
+
+rules/
+└── 100100-brute-force.xml
+
+scripts/
+└── smb_failed_login.sh
+
+screenshots/
+├── smbrute-01-multi-scriptexec.png
+├── smbrute-02-multi-eventview.png.png
+└── smbrute-03-multi-wazuhdiscover.png.png
+```
