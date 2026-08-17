@@ -1,33 +1,35 @@
-# Incident 01 - SMB Authentication Failure Detection with Wazuh
+# Incident 01 — SMB Authentication Failure Detection with Wazuh
 
 ## Overview
 
-This project demonstrates how Wazuh detects and investigates a failed SMB authentication attempt against a Windows endpoint.
+This investigation demonstrates how Wazuh can detect and investigate a failed SMB authentication attempt against a Windows endpoint.
 
-The objective is to simulate an authentication failure from an attacker machine, collect Windows Security Event logs, and investigate how Wazuh parses and generates security alerts.
+The scenario simulates an authentication attempt from a Kali Linux machine using an invalid account. The Windows endpoint records the failed authentication as Security Event ID 4625, which is then collected by the Wazuh Agent and surfaced as a security alert.
+
+The main focus of this exercise was not simply generating an alert, but following the event through the monitoring pipeline and validating the available evidence during the investigation.
 
 ---
 
 ## Objectives
 
-- Simulate an SMB authentication attempt from Kali Linux
+- Simulate a failed SMB authentication attempt from Kali Linux
 - Generate Windows Security Event ID 4625
-- Verify log collection by Wazuh Agent
-- Investigate the generated alert inside Wazuh
-- Understand the attack flow from attacker to SIEM
+- Verify that the Wazuh Agent collects the event
+- Investigate the resulting Wazuh alert
+- Trace the activity from the attacker machine to the SIEM
+- Evaluate different tools for generating repeated SMB authentication attempts
 
 ---
 
-# Lab Architecture
+## Lab Architecture
 
-```
+~~~text
                     +----------------------+
                     |    Kali Linux VM     |
                     | 192.168.122.64       |
                     +----------+-----------+
                                |
                      SMB Authentication
-                               |
                                |
                                ▼
                     +----------------------+
@@ -41,15 +43,15 @@ The objective is to simulate an authentication failure from an attacker machine,
                                |
                                ▼
                     +----------------------+
-                    | Wazuh Manager         |
+                    | Wazuh Manager        |
                     | Ubuntu               |
                     | 192.168.1.7          |
                     +----------------------+
-```
+~~~
 
 ---
 
-# Environment
+## Environment
 
 | Component | Value |
 |-----------|-------|
@@ -63,13 +65,15 @@ The objective is to simulate an authentication failure from an attacker machine,
 
 ---
 
-# Attack Scenario
+## Attack Scenario
 
-An attacker attempts to authenticate to the SMB service using a non-existent account.
+The simulated attacker attempts to authenticate to the Windows SMB service using a non-existent account.
 
 The Windows endpoint rejects the authentication request and records Security Event ID 4625.
 
-Wazuh receives the event through the Windows agent and generates a security alert.
+The Wazuh Agent forwards the event to the Wazuh Manager, where Rule ID 60122 identifies the failed authentication.
+
+The investigation then uses both Windows Event Viewer and Wazuh to validate the event and understand the authentication failure.
 
 ---
 
@@ -77,48 +81,50 @@ Wazuh receives the event through the Windows agent and generates a security aler
 
 ## Step 1 — Verify SMB Service
 
-```bash
+The first step was to verify that the SMB service was reachable from the attacker machine.
+
+~~~bash
 nmap -Pn -p445 192.168.1.4
-```
+~~~
 
-Result
+Result:
 
-- TCP/445 is open
+- TCP/445 was open.
 
 ---
 
-## Step 2 — Failed SMB Authentication
+## Step 2 — Attempt SMB Authentication
 
-```bash
+A failed authentication attempt was generated using `smbclient` with an invalid username.
+
+~~~bash
 smbclient -L //192.168.1.4 -U kali-attacker
-```
+~~~
 
-Screenshot
 ![Attacker Terminal](../screenshots/smbrute-01-single-kaliterminal.png)
 
-Result
+Result:
 
-```
+~~~text
 NT_STATUS_LOGON_FAILURE
-```
+~~~
 
-This authentication attempt generates Windows Security Event ID 4625.
+The failed authentication generated Windows Security Event ID 4625.
 
 ---
 
 # Detection
 
-Wazuh successfully generated Rule ID **60122**.
-
-Rule Information
+Wazuh generated Rule ID **60122** for the failed authentication.
 
 | Item | Value |
 |------|-------|
 | Rule ID | 60122 |
 | Description | Logon Failure - Unknown user or bad password |
 
-Screenshot
 ![Wazuh Discover](../screenshots/smbrute-04-single-wazuhdiscover.png)
+
+The alert confirmed that the failed authentication attempt had successfully passed through the monitoring pipeline.
 
 ---
 
@@ -126,73 +132,34 @@ Screenshot
 
 ## Windows Event Viewer
 
-Event ID
+The corresponding Windows Security event was reviewed to understand the authentication failure in more detail.
 
-```
-4625
-```
+| Field | Value |
+|-------|-------|
+| Event ID | 4625 |
+| Log | Security |
+| Authentication | NTLM |
+| Source IP | 192.168.1.7 |
+| Workstation | KALI-ATTACKER |
+| Target User | kali-attacker |
+| Failure Reason | Unknown user name or bad password |
+| Status | 0xC000006D |
+| SubStatus | 0xC0000064 |
 
-Log Type
-
-```
-Security
-```
-
-Authentication
-
-```
-NTLM
-```
-
-Source IP
-
-```
-192.168.1.7
-```
-
-Workstation
-
-```
-KALI-ATTACKER
-```
-
-Target User
-
-```
-kali-attacker
-```
-
-Failure Reason
-
-```
-Unknown user name or bad password
-```
-
-Status
-
-```
-0xC000006D
-```
-
-SubStatus
-
-```
-0xC0000064
-```
-
-Screenshots
 ![Event Viewer 1](../screenshots/smbrute-02-single-eventview.png)
 
 ![Event Viewer 2](../screenshots/smbrute-03-single-eventview.png)
+
+These fields provided additional context beyond the Wazuh alert itself, including the authentication package, workstation name, target username, and reason for the failure.
 
 ---
 
 ## Wazuh Alert Analysis
 
-Alert Information
+The corresponding Wazuh alert contained the following information:
 
 | Field | Value |
-|--------|-------|
+|-------|-------|
 | Agent | X390 |
 | Event ID | 4625 |
 | Rule ID | 60122 |
@@ -201,82 +168,77 @@ Alert Information
 | Workstation | KALI-ATTACKER |
 | Username | kali-attacker |
 
-Screenshots
 ![Wazuh Detail 1](../screenshots/smbrute-05-single-wazuhdetail1.png)
 
 ![Wazuh Detail 2](../screenshots/smbrute-06-single-wazuhdetail2.png)
+
+The Wazuh alert and the Windows event provided consistent evidence that the authentication attempt had failed and allowed the activity to be investigated from the SIEM.
 
 ---
 
 # Attack Timeline
 
-```
+~~~text
 Kali Linux
-
-↓
-
-SMB Authentication
-
-↓
-
+    │
+    ▼
+SMB Authentication Attempt
+    │
+    ▼
 Windows Security Event 4625
-
-↓
-
+    │
+    ▼
 Wazuh Agent
-
-↓
-
+    │
+    ▼
 Wazuh Manager
-
-↓
-
+    │
+    ▼
 Rule 60122 Triggered
-
-↓
-
+    │
+    ▼
 SOC Investigation
-```
+~~~
 
 ---
 
 # MITRE ATT&CK
 
-Although this activity only simulates an authentication failure, it resembles the early phase of password guessing or brute-force attacks.
+The activity simulated in this lab represents a failed authentication attempt and can be relevant to credential access scenarios such as password guessing or brute-force activity.
 
-Potential ATT&CK Mapping
+Potential ATT&CK mapping:
 
-- T1110 – Brute Force *(future enhancement)*
-- TA0006 – Credential Access
+- **T1110 — Brute Force** *(future enhancement)*
+- **TA0006 — Credential Access**
 
 > Note:
 >
-> Wazuh's default rule maps Event ID 4625 differently. This lab uses the attack scenario as an educational example. Custom MITRE mapping will be implemented in future detection engineering exercises.
+> Wazuh's default rule maps Event ID 4625 differently. The ATT&CK mapping above is used as an educational representation of the simulated attack scenario. Custom MITRE mapping will be implemented in future detection engineering exercises.
 
 ---
 
 # Findings
 
-- SMB service was reachable from the attacker machine.
-- Windows successfully generated Security Event ID 4625.
-- Wazuh Agent forwarded the event to the manager.
+The investigation confirmed that:
+
+- SMB was reachable from the attacker machine.
+- An invalid SMB authentication attempt generated Windows Security Event ID 4625.
+- The Wazuh Agent successfully collected the event.
 - Wazuh Rule 60122 detected the failed authentication.
-- Investigation successfully identified:
-  - Source IP
-  - Workstation name
-  - Authentication package
-  - Target username
-  - Failure reason
+- The alert contained useful investigation context, including the source IP, workstation name, authentication package, and username.
+- Windows Event Viewer provided additional details about the authentication failure that were useful for investigation.
 
 ---
 
-## Investigation Notes
+# Investigation Notes
 
-During the implementation of this lab, multiple SMB clients were evaluated to simulate failed authentication attempts against the Windows endpoint.
+During the lab, multiple SMB clients were evaluated to determine whether they could be used to generate repeated failed authentication attempts.
 
-### smbclient
+## smbclient
 
-The `smbclient` utility successfully initiated an SMB authentication request using an invalid username, generating:
+`smbclient` successfully initiated an SMB authentication request using an invalid username.
+
+The attempt generated:
 
 - Windows Security Event ID 4625
 - Wazuh Rule ID 60122
@@ -284,18 +246,23 @@ The `smbclient` utility successfully initiated an SMB authentication request usi
 
 This became the primary method used to validate the SIEM detection pipeline.
 
-### Hydra
+## Hydra
 
-Hydra was tested to automate SMB password guessing but returned:
+Hydra was tested as a way to automate SMB password-guessing attempts.
 
+However, it returned:
+
+~~~text
 [ERROR] invalid reply from target smb://192.168.1.4:445/
+~~~
+
 ![Hydra Fail](../screenshots/smbrute-01-fail-hydra.png)
 
-No repeated authentication events were generated.
+No repeated authentication events were generated through this method.
 
-### NetExec
+## NetExec
 
-NetExec successfully fingerprinted the target:
+NetExec was able to fingerprint the target and identified:
 
 - Windows 11 Build 26100
 - SMB Signing Enabled
@@ -303,40 +270,39 @@ NetExec successfully fingerprinted the target:
 
 However, the authentication process failed with:
 
+~~~text
 Connection Error:
 The NETBIOS connection with the remote host timed out
+~~~
+
 ![Netexec Fail](../screenshots/smbrute-02-fail-netexec.png)
 
-Windows SMB Server logs recorded additional events:
+The Windows SMB Server logs recorded additional events:
 
-- Event ID 551 (Smb2SessionAuthFailure)
-- Event ID 1009 (SrvSessionAnonymousAccessDenied)
+- Event ID 551 — Smb2SessionAuthFailure
+- Event ID 1009 — SrvSessionAnonymousAccessDenied
 
-![SMB Eventview](../screenshots/smbrute-03-fail-eventview.png)
+![SMB Event Viewer](../screenshots/smbrute-03-fail-eventview.png)
 
-The authentication session terminated before username validation, preventing the generation of repeated Event ID 4625 entries.
+The authentication session terminated before username validation, preventing repeated Event ID 4625 entries from being generated.
 
-Further investigation is required to determine whether this behavior is caused by compatibility issues between NetExec/Hydra and Windows 11 Build 26100 SMB implementation.
+Further investigation is required to determine whether this behavior is related to compatibility between NetExec/Hydra and the Windows 11 Build 26100 SMB implementation.
 
 ---
 
 # Lessons Learned
 
-Through this lab I learned how to:
+This investigation provided practical experience with the relationship between endpoint telemetry and SIEM detection.
 
-- Simulate SMB authentication failures
-- Investigate Windows Event ID 4625
-- Correlate Windows Security logs with Wazuh alerts
-- Understand the relationship between Windows Event Viewer and SIEM
-- Perform basic SOC-style investigation
+Key takeaways include:
 
-After attempting brute force on SMB
-- A successful TCP connection does not guarantee a successful authentication session.
-- SMB authentication failures can be recorded in multiple Windows log channels.
-- Windows Security logs (Event ID 4625) and Microsoft-Windows-SMBServer logs provide complementary information.
-- Modern Windows SMB implementations may behave differently with automated authentication tools.
-- Security investigations often require validating assumptions using multiple tools instead of relying on a single utility.
-- Troubleshooting unexpected tool behavior is an important part of defensive security engineering.
+- A successful TCP connection to SMB does not guarantee a successful authentication session.
+- Windows can record authentication failures across multiple logging channels.
+- Security Event ID 4625 provides useful information for investigating failed authentication attempts.
+- Windows Security logs and Microsoft-Windows-SMBServer logs can provide complementary evidence.
+- Different authentication tools may interact with modern Windows SMB implementations differently.
+- Troubleshooting an unsuccessful attack simulation is also part of security engineering.
+- A SOC investigation should validate assumptions using multiple sources rather than relying on a single tool or alert.
 
 ---
 
@@ -345,19 +311,21 @@ After attempting brute force on SMB
 - Investigate SMB authentication behavior on Windows 11 Build 26100.
 - Test additional SMB authentication tools.
 - Create custom Wazuh detection rules for repeated failed logon attempts.
-- Simulate password spraying and brute-force attacks after resolving tool compatibility.
-- Correlate Windows Security (4625) and SMB Server events into a higher-confidence alert.
+- Simulate password spraying and brute-force activity after resolving tool compatibility issues.
+- Correlate Windows Security Event 4625 and SMB Server events into a higher-confidence detection.
 - Visualize authentication trends using Wazuh dashboards.
 
 ---
 
-## Repository Status
+# Repository Status
 
-Current Status: ✅ Baseline Detection Completed
+**Current Status: Baseline Detection Completed**
 
 - SMB connectivity verified
-- Windows Event ID 4625 collected
+- Failed SMB authentication successfully simulated
+- Windows Security Event ID 4625 collected
 - Wazuh Rule 60122 validated
-- Event correlation documented
+- Investigation evidence documented
+- Multiple SMB authentication tools evaluated
 
-Advanced attack simulation (password spraying / brute force) is planned for a future iteration after SMB client compatibility testing.
+Advanced attack simulation, including password spraying and brute-force scenarios, remains planned for a future iteration after the SMB client compatibility issues are investigated.
