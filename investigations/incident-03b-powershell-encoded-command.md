@@ -1,10 +1,12 @@
-# Incident 3B — Encoded PowerShell Command
+# Incident 03B — Encoded PowerShell Command
 
 ## Overview
 
-This investigation demonstrates the detection and analysis of a PowerShell process executing a Base64-encoded command.
+This investigation examines the execution of a PowerShell process using the `-EncodedCommand` parameter.
 
-The activity was intentionally simulated in a controlled lab environment to generate realistic endpoint telemetry and validate Wazuh detection capabilities.
+The activity was intentionally simulated in a controlled lab environment using a benign payload. The purpose was to generate realistic endpoint telemetry, validate Wazuh's detection capability, and practice investigating suspicious PowerShell command-line activity.
+
+The investigation focuses on how a SOC analyst can identify encoded PowerShell execution, validate the underlying Sysmon event, and determine what additional context is required before deciding whether the activity is malicious.
 
 ---
 
@@ -16,13 +18,14 @@ The activity was intentionally simulated in a controlled lab environment to gene
 - Validate the detection through Wazuh
 - Correlate Windows Event Viewer and Wazuh telemetry
 - Map the activity to MITRE ATT&CK
+- Practice contextual analysis of a potentially suspicious PowerShell event
 
 ---
 
 ## Lab Environment
 
 | Component | Details |
-|---|---|
+|-----------|---------|
 | Endpoint | Windows |
 | Hostname | X390 |
 | SIEM | Wazuh |
@@ -30,67 +33,73 @@ The activity was intentionally simulated in a controlled lab environment to gene
 | Event ID | 1 — Process Create |
 | Wazuh Rule | 92057 |
 | Alert Level | 12 |
-| MITRE ATT&CK | T1059.001 — PowerShell |
+| MITRE ATT&CK | T1059.001 — Command and Scripting Interpreter: PowerShell |
 
 ---
 
-## Attack Simulation
+# Attack Simulation
 
 A PowerShell process was executed using the `-EncodedCommand` parameter.
 
-The encoded command was generated using Base64 encoding and then passed to a new PowerShell process.
+The command was first encoded using Base64 and then passed to a new PowerShell process.
 
-Example:
-
-```powershell
+~~~powershell
 powershell.exe -EncodedCommand <BASE64_STRING>
-```
+~~~
 
-The payload was intentionally benign and used only to generate telemetry for the detection lab.
+The payload was intentionally benign and was used only to generate telemetry for the detection lab.
+
+### Evidence
+
+![Encoded PowerShell Execution](screenshots/incident-03b/encoded-powershell-execution.png)
 
 ---
 
-## Detection
+# Detection
 
 Sysmon generated a Process Create event (Event ID 1) containing the PowerShell command line.
 
 Relevant telemetry included:
 
-```text
+~~~text
 Image:
 C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
 
 CommandLine:
 "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -EncodedCommand <BASE64_STRING>
-```
+~~~
 
 The event was forwarded to Wazuh through the Windows Event Channel.
 
 Wazuh generated the following alert:
 
-```text
+~~~text
 Rule ID: 92057
 Level: 12
 
 Description:
 Powershell.exe spawned a powershell process which executed a base64 encoded command
-```
+~~~
 
 MITRE ATT&CK mapping:
 
-```text
+~~~text
 T1059.001 — Command and Scripting Interpreter: PowerShell
-```
+~~~
+
+### Evidence
+
+![Wazuh Alert](screenshots/incident-03b/wazuh-alert.png)
 
 ---
 
-## Investigation
+# Investigation
 
-### 1. Process Creation
+## 1. Process Creation
 
 Windows Event Viewer was used to validate the original Sysmon event.
 
-The event showed:
+The event provided the following investigation details:
 
 - Provider: `Microsoft-Windows-Sysmon`
 - Event ID: `1`
@@ -100,64 +109,72 @@ The event showed:
 - User context
 - Process identifiers
 
+### Evidence
+
+![Sysmon Process Creation](screenshots/incident-03b/sysmon-process-create.png)
+
 ---
 
-### 2. Command-Line Analysis
+## 2. Command-Line Analysis
 
 The primary indicator was the presence of:
 
-```text
+~~~text
 -EncodedCommand
-```
+~~~
 
 Unlike a normal PowerShell command such as:
 
-```powershell
+~~~powershell
 Get-Process
-```
+~~~
 
 an encoded command does not immediately reveal its intended content from the command line.
 
 This makes the execution worthy of further investigation.
 
-However, the presence of `-EncodedCommand` alone does not prove malicious activity.
+However, the presence of `-EncodedCommand` alone does not prove that the activity is malicious.
+
+The command must be decoded and evaluated together with the surrounding process and system activity.
 
 ---
 
-### 3. Wazuh Detection
+## 3. Wazuh Detection
 
-Wazuh successfully ingested the Sysmon telemetry and generated an alert using rule `92057`.
+Wazuh successfully ingested the Sysmon telemetry and generated an alert using Rule `92057`.
 
-The alert contained:
-
-```text
+~~~text
 Rule ID: 92057
 Rule Level: 12
 MITRE ATT&CK: T1059.001
-```
+~~~
 
 The Wazuh timestamp was approximately one second after the corresponding Sysmon event observed in Windows Event Viewer.
 
 This confirmed that the endpoint telemetry was successfully collected and processed by the SIEM.
 
+### Evidence
+
+![Wazuh Detection Details](screenshots/incident-03b/wazuh-detection-details.png)
+
 ---
 
-## Timeline
+# Timeline
 
 | Time | Source | Event |
-|---|---|---|
+|------|--------|-------|
 | 10:30:47 | Windows / Sysmon | PowerShell process created with `-EncodedCommand` |
-| 10:30:48 | Wazuh | Detection generated by rule `92057` |
+| 10:30:48 | Wazuh | Detection generated by Rule `92057` |
 
-The timestamps were manually correlated between Windows Event Viewer and Wazuh.
+The timestamps were manually correlated between Windows Event Viewer and Wazuh to verify the detection pipeline.
 
 ---
 
-## Investigation Considerations
+# Investigation Considerations
 
-When investigating encoded PowerShell activity in a real environment, the following context should be reviewed:
+When investigating encoded PowerShell activity in a real environment, the following context should be reviewed.
 
-### Parent Process
+## Parent Process
 
 Determine what launched PowerShell.
 
@@ -174,11 +191,11 @@ Examples of potentially relevant parent processes include:
 
 The parent process should be evaluated together with the user's activity and expected business context.
 
-### User Context
+## User Context
 
-Determine which account executed the PowerShell process and whether the activity was expected.
+Determine which account executed the PowerShell process and whether the activity was expected for that user.
 
-### Encoded Payload
+## Encoded Payload
 
 Decode the Base64 command to determine its actual behavior.
 
@@ -191,51 +208,64 @@ The decoded content should then be assessed for:
 - Persistence
 - Download or execution of additional payloads
 
-### Process Chain
+### Evidence
+
+![Decoded Payload](screenshots/incident-03b/decoded-payload.png)
+
+## Process Chain
 
 Correlate the PowerShell process with its parent and child processes.
 
 This helps determine whether the encoded command was part of a larger execution chain.
 
+### Evidence
+
+![Process Chain](screenshots/incident-03b/process-chain.png)
+
 ---
 
-## Analysis
+# Analysis
 
 The presence of `-EncodedCommand` should be treated as a **suspicious indicator**, not automatic proof of compromise.
 
-PowerShell is widely used for legitimate administrative tasks, and encoded commands may also have legitimate use cases.
+PowerShell is widely used for legitimate administrative tasks, and encoded commands can have legitimate use cases.
 
-Therefore, a SOC analyst should avoid relying on a single indicator.
+For this reason, a SOC analyst should avoid making a determination based on a single indicator.
 
 A more effective approach is to correlate multiple layers of telemetry:
 
-```text
+~~~text
 PowerShell
-    ↓
+    │
+    ▼
 EncodedCommand
-    ↓
+    │
+    ▼
 Parent Process
-    ↓
+    │
+    ▼
 User Context
-    ↓
+    │
+    ▼
 Decoded Command
-    ↓
+    │
+    ▼
 Child Processes / Network / File Activity
-```
+~~~
 
-The more suspicious signals that are correlated, the higher the confidence that the activity requires escalation.
+The presence of multiple suspicious signals would increase confidence that the activity requires escalation.
 
 ---
 
-## MITRE ATT&CK
+# MITRE ATT&CK
 
 | Technique | ID | Relevance |
-|---|---|---|
+|-----------|----|-----------|
 | Command and Scripting Interpreter: PowerShell | T1059.001 | PowerShell was used to execute the encoded command |
 
 ---
 
-## Conclusion
+# Conclusion
 
 The simulated encoded PowerShell execution was successfully detected by Wazuh using Sysmon telemetry.
 
@@ -244,15 +274,16 @@ The investigation demonstrated that:
 - Sysmon Event ID 1 provides detailed process creation telemetry.
 - PowerShell command-line parameters provide valuable detection context.
 - `-EncodedCommand` is a useful indicator for further investigation.
-- Wazuh can detect and enrich the event with MITRE ATT&CK mapping.
+- Wazuh can detect the activity and associate it with MITRE ATT&CK T1059.001.
 - Windows Event Viewer can be used to validate the original endpoint event.
 - Endpoint and SIEM timestamps can be correlated to reconstruct the execution timeline.
+- The presence of encoded PowerShell alone is not sufficient to determine malicious intent.
 
 The activity was intentionally benign and generated only for detection and investigation purposes.
 
 ---
 
-## Key Takeaways
+# Key Takeaways
 
 > PowerShell itself is not inherently malicious.
 
@@ -261,3 +292,55 @@ The activity was intentionally benign and generated only for detection and inves
 > However, encoded execution reduces command visibility and should increase investigative attention.
 
 > Effective PowerShell detection requires contextual analysis rather than relying on a single indicator.
+
+---
+
+# Skills Demonstrated
+
+- Sysmon Investigation
+- Windows Event Analysis
+- Event ID 1 — Process Create
+- PowerShell Analysis
+- Command-Line Analysis
+- Process Correlation
+- Parent/Child Process Analysis
+- Wazuh Alert Analysis
+- MITRE ATT&CK Mapping
+- SOC Investigation Workflow
+
+---
+
+# Repository Artifacts
+
+~~~text
+investigations/
+└── incident-03b-encoded-powershell.md
+
+screenshots/
+└── incident-03b/
+    ├── encoded-powershell-execution.png
+    ├── sysmon-process-create.png
+    ├── wazuh-alert.png
+    ├── wazuh-detection-details.png
+    ├── decoded-payload.png
+    └── process-chain.png
+
+scripts/
+└── (benign encoded PowerShell command)
+
+rules/
+└── Default Wazuh Rule 92057
+~~~
+
+---
+
+# Repository Status
+
+**Current Status: Detection and Investigation Completed**
+
+- Encoded PowerShell execution successfully simulated
+- Sysmon Event ID 1 captured
+- Wazuh Rule 92057 validated
+- MITRE ATT&CK T1059.001 identified
+- Windows Event Viewer and Wazuh telemetry correlated
+- Investigation workflow documented
