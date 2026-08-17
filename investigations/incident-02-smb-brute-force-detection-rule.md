@@ -1,28 +1,30 @@
-# Incident 02 - SMB Brute Force Detection using Custom Wazuh Rule
+# Incident 02 — SMB Brute Force Detection with a Custom Wazuh Rule
 
 ## Overview
 
-This lab demonstrates how to create a custom Wazuh correlation rule to detect potential SMB brute-force attacks against a Windows endpoint.
+This investigation builds on the failed SMB authentication scenario from Incident 01.
 
-Instead of relying only on Wazuh's default authentication failure rule, this investigation creates a higher-level detection that correlates multiple failed login attempts within a short period of time.
+Instead of treating each failed authentication as an individual alert, this exercise uses a custom Wazuh correlation rule to identify a pattern of repeated authentication failures within a short period of time.
+
+The objective is to demonstrate how individual Windows Security Event ID 4625 events can be correlated into a higher-confidence detection for a potential SMB brute-force attack.
 
 ---
 
-# Objectives
+## Objectives
 
 - Simulate multiple failed SMB authentication attempts
 - Generate Windows Security Event ID 4625
-- Observe Wazuh default detection (Rule 60122)
+- Observe Wazuh's default authentication failure detection
 - Develop a custom Wazuh correlation rule
-- Trigger a new alert after repeated authentication failures
-- Document the complete detection workflow
+- Trigger a higher-severity alert after repeated failures
+- Validate and document the complete detection workflow
 
 ---
 
-# Lab Environment
+## Lab Environment
 
 | Component | Value |
-|-----------|------|
+|-----------|-------|
 | SIEM | Wazuh 4.x |
 | Attacker | Kali Linux |
 | Target | Windows 11 |
@@ -33,10 +35,10 @@ Instead of relying only on Wazuh's default authentication failure rule, this inv
 
 ---
 
-# Network Topology
+## Network Topology
 
 | Host | IP Address |
-|------|-----------|
+|------|------------|
 | Kali Attacker | 192.168.1.7 |
 | Windows 11 | 192.168.1.4 |
 | Wazuh Server | 192.168.1.7 |
@@ -45,42 +47,47 @@ Instead of relying only on Wazuh's default authentication failure rule, this inv
 
 # Attack Simulation
 
-A Bash script was created to simulate repeated failed SMB authentication attempts.
+A Bash script was created to generate repeated failed SMB authentication attempts against the Windows endpoint.
 
-```bash
+~~~bash
 ./scripts/smb_failed_login.sh
-```
+~~~
 
 The script performs five consecutive failed login attempts against the SMB service.
+
+The purpose of the simulation is to generate a sequence of authentication failures that can then be correlated by Wazuh.
 
 ---
 
 # Detection Flow
 
-```text
+~~~text
 Kali Linux
-        │
-        ▼
+    │
+    ▼
 Repeated SMB Login Attempts
-        │
-        ▼
-Windows Security Event
-Event ID 4625
-        │
-        ▼
+    │
+    ▼
+Windows Security Event 4625
+    │
+    ▼
 Wazuh Rule 60122
-(Logon Failure)
-        │
-        ▼
+Logon Failure
+    │
+    ▼
 Custom Rule 100100
-(Possible SMB Brute Force Attack)
-```
+Possible SMB Brute Force Attack
+~~~
+
+The default rule identifies the individual authentication failures, while the custom rule looks for repeated occurrences within a defined time window.
 
 ---
 
-# Custom Rule
+# Custom Detection Rule
 
-```xml
+The following custom rule correlates five occurrences of Wazuh Rule 60122 within 60 seconds.
+
+~~~xml
 <rule id="100100"
       level="10"
       frequency="5"
@@ -99,7 +106,20 @@ Custom Rule 100100
     </mitre>
 
 </rule>
-```
+~~~
+
+### Rule Logic
+
+| Attribute | Value | Purpose |
+|-----------|-------|---------|
+| Rule ID | 100100 | Custom detection rule |
+| Level | 10 | Higher-severity alert |
+| Frequency | 5 | Requires five matching events |
+| Timeframe | 60 seconds | Events must occur within 60 seconds |
+| Parent Rule | 60122 | Matches failed authentication events |
+| MITRE ATT&CK | T1110 | Brute Force |
+
+This creates a simple correlation layer above the default authentication failure detection.
 
 ---
 
@@ -107,83 +127,64 @@ Custom Rule 100100
 
 ## Script Execution
 
+The attack simulation script was executed from the Kali Linux attacker machine.
+
 ![Script Execution](../screenshots/smbrute-01-multi-scriptexec.png)
 
 ---
 
 ## Windows Event Viewer
 
-Security Event
+The repeated authentication attempts generated Windows Security Event ID 4625.
 
-Event ID:
+| Field | Value |
+|-------|-------|
+| Event ID | 4625 |
+| Authentication Package | NTLM |
+| Logon Type | 3 |
+| Source IP | 192.168.1.7 |
 
-```
-4625
-```
+![Event Viewer](../screenshots/smbrute-02-multi-eventview.png)
 
-Authentication Package
-
-```
-NTLM
-```
-
-Logon Type
-
-```
-3
-```
-
-Source IP
-
-```
-192.168.1.7
-```
-
-![Event View](../screenshots/smbrute-02-multi-eventview.png)
+These events provided the underlying endpoint telemetry used by Wazuh for detection.
 
 ---
 
 ## Default Detection
 
-Rule ID
+Each failed authentication was initially detected by Wazuh Rule 60122:
 
-```
+~~~text
+Rule ID:
 60122
-```
 
-Description
-
-```
+Description:
 Logon Failure - Unknown user or bad password
-```
+~~~
+
+This represents the individual authentication failure events before correlation.
 
 ---
 
 ## Custom Detection
 
-Rule ID
+After the configured threshold was reached, Wazuh triggered the custom correlation rule:
 
-```
+~~~text
+Rule ID:
 100100
-```
 
-Description
-
-```
+Description:
 Possible SMB Brute Force Attack Detected
-```
 
-Level
-
-```
+Level:
 10
-```
 
-MITRE ATT&CK
-
-```
+MITRE ATT&CK:
 T1110 - Brute Force
-```
+~~~
+
+This demonstrates the difference between an individual event detection and a higher-level detection based on repeated activity.
 
 ---
 
@@ -191,23 +192,61 @@ T1110 - Brute Force
 
 | Time | Event |
 |------|-------|
-|10:56:15|4625|
-|10:56:19|4625|
-|10:56:22|4625|
-|10:56:26|4625|
-|10:56:30|Custom Rule 100100 Triggered|
+| 10:56:15 | Windows Event ID 4625 |
+| 10:56:19 | Windows Event ID 4625 |
+| 10:56:22 | Windows Event ID 4625 |
+| 10:56:26 | Windows Event ID 4625 |
+| 10:56:30 | Custom Rule 100100 Triggered |
 
 ![Wazuh Discover](../screenshots/smbrute-03-multi-wazuhdiscover.png)
+
+The timeline shows that the authentication failures occurred within the configured 60-second window. Once the fifth matching event was observed, Wazuh generated the higher-level Rule 100100 alert.
+
+---
+
+# Detection Engineering Notes
+
+One of the main purposes of this exercise was to understand how a SIEM can move from individual events toward behavioral detection.
+
+A single failed authentication does not necessarily indicate an attack. It could be caused by a mistyped password or another benign situation.
+
+However, repeated authentication failures within a short period provide stronger evidence of potentially malicious activity.
+
+The custom rule therefore adds a simple correlation layer:
+
+~~~text
+Individual Event
+    ↓
+Event ID 4625
+    ↓
+Rule 60122
+    ↓
+5 matching events within 60 seconds
+    ↓
+Rule 100100
+    ↓
+Potential SMB Brute Force Detection
+~~~
+
+This approach also provides a foundation for future tuning, such as correlating events by source IP, username, or other attributes.
 
 ---
 
 # Lessons Learned
 
-During this lab, I learned how Wazuh correlates multiple authentication failure events into a higher-level security alert.
+This lab helped me understand how Wazuh can be extended beyond its default detection rules through custom correlation logic.
 
-One important lesson was that `frequency` and `timeframe` are rule attributes rather than XML elements. Running `wazuh-analysisd -t` before restarting the manager proved essential for validating custom rules and preventing configuration errors.
+One important lesson was that `frequency` and `timeframe` are rule attributes used to control event correlation rather than XML elements inside the rule body.
 
-This lab also demonstrated how custom detection engineering can extend Wazuh beyond its default rules by creating organization-specific alerts.
+Running `wazuh-analysisd -t` before restarting the Wazuh Manager was also an important part of the workflow. It allowed the custom rule configuration to be validated before applying it to the running environment.
+
+The exercise reinforced several detection engineering concepts:
+
+- Individual authentication failures do not always indicate an attack.
+- Repeated events can provide stronger evidence when analyzed as a pattern.
+- Correlation rules can turn low-level telemetry into higher-level detections.
+- Detection thresholds need to be tuned to balance detection coverage and false positives.
+- Validating the rule configuration before deployment helps prevent configuration errors.
 
 ---
 
@@ -215,10 +254,11 @@ This lab also demonstrated how custom detection engineering can extend Wazuh bey
 
 - Correlate authentication failures by source IP
 - Correlate repeated failures for the same username
-- Reduce false positives
+- Tune thresholds to reduce false positives
+- Detect password spraying separately from brute-force activity
 - Add Active Response to block attacking IP addresses
 - Create custom dashboard visualizations
-- Detect password spraying separately from brute-force attacks
+- Correlate authentication failures with additional Windows and SMB events
 
 ---
 
@@ -229,14 +269,16 @@ This lab also demonstrated how custom detection engineering can extend Wazuh bey
 - Event ID 4625 Investigation
 - Wazuh Rule Development
 - Detection Engineering
-- Rule Correlation
+- Event Correlation
 - MITRE ATT&CK Mapping
 - SIEM Validation
 - Security Monitoring
 
+---
+
 # Repository Artifacts
 
-```
+~~~text
 investigations/
 └── incident-02-smb-brute-force-detection-rule.md
 
@@ -250,4 +292,20 @@ screenshots/
 ├── smbrute-01-multi-scriptexec.png
 ├── smbrute-02-multi-eventview.png
 └── smbrute-03-multi-wazuhdiscover.png
-```
+~~~
+
+---
+
+# Repository Status
+
+**Current Status: Detection Engineering Baseline Completed**
+
+- Multiple SMB authentication failures successfully simulated
+- Windows Security Event ID 4625 generated
+- Wazuh Rule 60122 validated
+- Custom Wazuh Rule 100100 implemented
+- Five-event threshold within a 60-second window validated
+- Higher-level brute-force detection successfully triggered
+- Detection workflow documented
+
+Further improvements will focus on correlation, threshold tuning, false-positive reduction, and distinguishing brute-force activity from other authentication patterns such as password spraying.
