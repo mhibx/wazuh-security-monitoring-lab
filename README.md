@@ -1,49 +1,69 @@
 # Wazuh Security Monitoring Lab
 
-A hands-on security monitoring lab built with Wazuh to practice Windows endpoint monitoring, log analysis, threat detection, and security investigation in a self-hosted environment.
+A hands-on security monitoring lab built from the ground up to practice SIEM deployment, Windows endpoint monitoring, network intrusion detection, log analysis, threat detection, and security investigation in a self-hosted environment.
 
 ## Overview
 
-This project focuses on building a small security monitoring environment from the ground up and using it to investigate Windows security events.
+This project started as a Wazuh-based SIEM lab for monitoring a Windows 11 endpoint and investigating security events.
 
-The lab currently uses Ubuntu as the Wazuh server and Windows 11 as the monitored endpoint. Windows Event Logs are collected by the Wazuh agent and analyzed using Wazuh's built-in and custom detection rules.
+As the lab evolved, I expanded it with Sysmon for additional Windows telemetry and Suricata as a network intrusion detection system (IDS). This allows the lab to cover both endpoint and network-based security monitoring.
 
-The main goal of the project is to understand the process behind security monitoring rather than simply deploying a SIEM:
+The main focus is understanding the complete detection workflow rather than simply deploying security tools:
 
 **Generate activity → collect telemetry → detect an event → investigate the alert → document the findings**
 
 ## Lab Architecture
 
 ~~~text
-Ubuntu 24.04
-│
-├── Wazuh Manager
-├── Wazuh Dashboard
-└── Filebeat
-        │
-        ▼
-Windows 11 Endpoint
-        │
-        ▼
-Windows Event Logs
-        │
-        ▼
-Wazuh Rules
-        │
-        ▼
-Security Alerts
+                         ┌──────────────────────┐
+                         │      Ubuntu 24.04     │
+                         │                      │
+                         │  Wazuh Manager       │
+                         │  Wazuh Dashboard     │
+                         │  Filebeat             │
+                         │  Suricata             │
+                         └──────────┬───────────┘
+                                    │
+                 ┌──────────────────┴──────────────────┐
+                 │                                     │
+                 ▼                                     ▼
+        ┌─────────────────┐                  ┌─────────────────┐
+        │  Windows 11     │                  │   Kali Linux    │
+        │                 │                  │                 │
+        │ Wazuh Agent     │                  │ Nmap            │
+        │ Sysmon          │                  │ Attack Testing  │
+        └────────┬────────┘                  └────────┬────────┘
+                 │                                    │
+                 ▼                                    ▼
+        Windows Event Logs                    Network Traffic
+                 │                                    │
+                 ▼                                    ▼
+        Wazuh Detection Rules                     Suricata
+                 │                                    │
+                 └────────────────┬───────────────────┘
+                                  ▼
+                           Security Alerts
+                                  │
+                                  ▼
+                         Investigation & Tuning
 ~~~
 
 ## Technologies
 
 - Ubuntu 24.04
 - Wazuh
+- Wazuh Agent
+- Wazuh Dashboard
+- Filebeat
 - Windows 11
 - Sysmon
+- Suricata
+- Kali Linux
+- Nmap
 - PowerShell
 - Docker
 
-## Use Cases
+## Detection & Monitoring Use Cases
 
 | Use Case | Status |
 |----------|:------:|
@@ -51,6 +71,9 @@ Security Alerts
 | Brute Force Detection | Completed |
 | PowerShell Monitoring | Completed |
 | Sysmon Monitoring | Completed |
+| Network Traffic Monitoring with Suricata | Completed |
+| Suricata Alert Ingestion into Wazuh | Completed |
+| Wazuh Alert Correlation & Tuning | In Progress |
 | Active Directory Monitoring | Planned |
 
 ## Project Structure
@@ -68,25 +91,31 @@ The repository contains supporting documentation, custom detection rules, screen
 
 - SIEM Deployment
 - Windows Event Analysis
+- Network Traffic Analysis
 - Log Analysis
 - Threat Detection
 - Security Monitoring
 - Detection Rule Configuration
+- IDS Integration
+- Alert Correlation
 - Incident Investigation
 
 ## What I Learned
 
-Building the lab from scratch helped me understand how security monitoring works across the different stages of the detection process.
+Building the environment from scratch helped me understand how different security monitoring components work together.
 
-Instead of treating alerts as isolated events, I practiced tracing them back to the underlying Windows activity and examining the available telemetry to understand what happened.
+On the endpoint side, I practiced collecting and investigating Windows security telemetry through Wazuh and Sysmon.
 
-This also gave me a practical foundation for developing custom detection rules and documenting security investigations.
+On the network side, I used Suricata to inspect traffic and generate IDS alerts from simulated activity, including Nmap scans from a Kali Linux attacker machine.
+
+The lab also helped me understand that generating an alert is only one part of detection engineering. The next step is determining which events are meaningful, reducing unnecessary alerts, and correlating related activity so that an analyst can investigate a security event more efficiently.
 
 ## Future Improvements
 
+- Complete Wazuh correlation and alert tuning for Suricata events
 - Active Directory integration
 - MITRE ATT&CK mapping
 - Custom Wazuh decoders
 - Advanced Sysmon detection rules
 - Email alerting
-- Network IDS integration
+- Additional network-based detection use cases
