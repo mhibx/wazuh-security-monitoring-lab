@@ -2,18 +2,23 @@
 
 ## Objective
 
-Deploy an all-in-one Wazuh server using the official installation script.
+Deploy an all-in-one Wazuh server using the official Wazuh installation method.
+
+The installation provides the core SIEM components required for the lab and prepares the environment for Windows endpoint integration.
 
 ## Installation Method
 
-Official Wazuh Quickstart
+The Wazuh Quickstart installation method was used to deploy the server components.
 
 ```bash
 curl -sO https://packages.wazuh.com/...
 ```
+
 ![Wazuh Installation](../screenshots/setup-01-wazuh-install.png)
 
 ## Components Installed
+
+The installation includes:
 
 - Wazuh Manager
 - Wazuh Dashboard
@@ -23,12 +28,14 @@ curl -sO https://packages.wazuh.com/...
 
 ## Verification
 
-- Dashboard accessible
-- Services running
-- Indexer healthy
+After installation, the environment was verified by checking:
+
+- Wazuh Dashboard accessibility
+- Wazuh services status
+- Indexer health
 
 ## Result
 
-The SIEM environment was successfully deployed and ready for endpoint integration.
+The Wazuh server was successfully deployed as an all-in-one SIEM environment and was ready for Windows endpoint integration.
 
-![Wazuh Login](../screenshots/setup-03-wazuh-dashboard.png)
+![Wazuh Dashboard](../screenshots/setup-03-wazuh-dashboard.png)
