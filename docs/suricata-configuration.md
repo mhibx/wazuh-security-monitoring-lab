@@ -46,7 +46,7 @@ The interface used by Suricata should correspond to the active network interface
 
 Before applying the configuration, the interface should be verified to ensure that Suricata is monitoring the intended network traffic.
 
-![Network Interface](../screenshots/suricata-05-network-interface.png)
+![Network Interface](../screenshots/suricata-05-network.png)
 
 ---
 
@@ -170,7 +170,7 @@ sudo suricata -T -c /etc/suricata/suricata.yaml
 
 A successful validation confirms that Suricata can load the configuration without syntax or configuration errors.
 
-![Configuration Validation](../screenshots/suricata-06-configuration-validation.png)
+![Configuration Validation](../screenshots/suricata-06-configvalid.png)
 
 ---
 
@@ -194,7 +194,7 @@ The service should report:
 Active: active (running)
 ```
 
-![Suricata Restart](../screenshots/suricata-07-service-restart.png)
+![Suricata Restart](../screenshots/suricata-07-restart.png)
 
 ---
 
@@ -214,7 +214,7 @@ sudo tail -f /var/log/suricata/eve.json
 
 At this stage, the goal is to confirm that Suricata is producing structured telemetry successfully.
 
-![EVE JSON](../screenshots/suricata-08-eve-json.png)
+![EVE JSON](../screenshots/suricata-08-evejson.png)
 
 ---
 
@@ -254,10 +254,10 @@ The following evidence should be collected during configuration:
 
 ```text
 screenshots/
-├── suricata-05-network-interface.png
-├── suricata-06-configuration-validation.png
-├── suricata-07-service-restart.png
-└── suricata-08-eve-json.png
+├── suricata-05-network.png
+├── suricata-06-configvalid.png
+├── suricata-07-restart.png
+└── suricata-08-evejson.png
 ```
 
 These screenshots document the configuration and verification process from network interface identification through successful telemetry generation.
