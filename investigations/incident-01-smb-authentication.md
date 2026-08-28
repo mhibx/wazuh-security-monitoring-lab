@@ -33,7 +33,7 @@ The main focus of this exercise was not simply generating an alert, but followin
                                |
                                ▼
                     +----------------------+
-                    | Windows 10 Endpoint  |
+                    | Windows 11 Endpoint  |
                     | 192.168.1.4          |
                     | Wazuh Agent          |
                     +----------+-----------+
@@ -57,7 +57,7 @@ The main focus of this exercise was not simply generating an alert, but followin
 |-----------|-------|
 | SIEM | Wazuh 4.x |
 | Manager OS | Ubuntu |
-| Endpoint | Windows 10 |
+| Endpoint | Windows 11 |
 | Attacker | Kali Linux |
 | Protocol | SMB |
 | Windows Event | 4625 |
