@@ -1,514 +1,576 @@
-# Wazuh Dashboard — Indexing Failure Caused by Disk Flood-Stage Watermark
+# Wazuh Indexer Disk Watermark Troubleshooting
 
 ## Overview
 
-This case documents a troubleshooting investigation where recent Windows
-telemetry and Wazuh alerts were not visible in the Wazuh Dashboard.
+During the operation of the Wazuh Security Monitoring Lab, the Wazuh Indexer generated the following warning:
 
-The investigation initially suggested a possible telemetry or detection
-pipeline failure. Endpoint telemetry was then validated layer by layer
-until the root cause was identified as disk pressure on the Wazuh server.
+```text
+indexer-connector: WARNING: Indexer request failed - type:
+'cluster_block_exception', reason:
+'index [wazuh-states-inventory-interfaces-mhibx] blocked by:
+[TOO_MANY_REQUESTS/12/disk usage exceeded flood-stage watermark,
+index has read-only-allow-delete block]'
+```
 
-The Wazuh Indexer had reached its disk flood-stage watermark and applied
-a `read_only_allow_delete` block to affected indices.
+The Wazuh Indexer service itself was still running, but some Wazuh data was not behaving normally in the Dashboard.
 
-After disk space was recovered, Wazuh resumed indexing new events and
-the expected security alert became visible again.
+This investigation focused on determining whether the issue was caused by:
 
----
+- filesystem capacity exhaustion
+- inode exhaustion
+- Wazuh Indexer storage
+- Wazuh Manager storage
+- Suricata logs
+- virtual machine images
+- user-level files
 
-## Environment
-
-| Component | Role |
-|---|---|
-| X390 | Windows 11 endpoint |
-| Sysmon | Windows endpoint telemetry |
-| Wazuh Agent | Endpoint telemetry collection |
-| mhibx | Wazuh server / manager |
-| Wazuh Indexer | Event indexing and storage |
-| Wazuh Dashboard | Security monitoring interface |
-
-### Telemetry Path
-
-    Windows X390
-        │
-        │ Sysmon telemetry
-        ▼
-    Wazuh Agent
-        │
-        │ TCP/1514
-        ▼
-    Wazuh Manager
-        │
-        ▼
-    Wazuh Indexer
-        │
-        ▼
-    Wazuh Dashboard
+The issue was investigated from the filesystem level before making changes to the Wazuh Indexer configuration.
 
 ---
 
-## Initial Symptom
+## Symptoms
 
-The Wazuh Dashboard did not display recent activity from the Windows
-endpoint.
+The primary symptom was abnormal Wazuh Dashboard data behavior.
 
-A search for recent Sysmon process creation events returned:
+The Wazuh Indexer service was still running:
 
-    No Results
+```bash
+sudo systemctl status wazuh-indexer --no-pager
+```
 
-The initial question was whether the problem was caused by:
+Example status:
 
-- Sysmon not generating events
-- Wazuh Agent not collecting events
-- Agent-to-manager connectivity
-- Wazuh detection rules
-- Wazuh Manager ingestion
-- Wazuh Indexer
-- Dashboard/indexing
+```text
+wazuh-indexer.service - wazuh-indexer
+Active: active (running)
+```
 
-Rather than assuming the detection rule was broken, the telemetry
-pipeline was investigated layer by layer.
+However, the Indexer reported:
 
----
+```text
+disk usage exceeded flood-stage watermark
+index has read-only-allow-delete block
+```
 
-# Investigation
+This is important because a running Indexer service does not necessarily mean that indexing operations are healthy.
 
-## 1. Verify Sysmon Telemetry
-
-The Windows endpoint was checked directly using PowerShell.
-
-    Get-WinEvent -FilterHashtable @{
-        LogName='Microsoft-Windows-Sysmon/Operational'
-        Id=1
-        StartTime=(Get-Date).AddMinutes(-5)
-    } | Select-Object TimeCreated, Id, Message | Select-Object -First 10
-
-Recent Sysmon Event ID 1 records were present.
-
-Example:
-
-    8/28/2026 6:48:13 PM    1    Process Create:...
-    8/28/2026 6:48:10 PM    1    Process Create:...
-    8/28/2026 6:48:08 PM    1    Process Create:...
-
-### Finding
-
-Sysmon was generating telemetry successfully.
-
-Therefore, the problem was not located at the endpoint telemetry
-generation layer.
+When disk usage reaches the configured flood-stage watermark, OpenSearch/Wazuh Indexer can protect the node by placing affected indices into a `read_only_allow_delete` state.
 
 ---
 
-## 2. Verify Wazuh Agent Service
+## Initial Filesystem Investigation
 
-The Wazuh Agent service was checked on the Windows endpoint.
+The root filesystem was checked first:
 
-    Get-Service WazuhSvc
-
-Result:
-
-    Status    Name
-    ------    ----
-    Running   WazuhSvc
-
-The agent service was running.
-
----
-
-## 3. Verify Network Connectivity
-
-Connectivity from the Windows endpoint to the Wazuh Manager was tested.
-
-    Test-NetConnection 192.168.1.7 -Port 1514
-
-Result:
-
-    ComputerName     : 192.168.1.7
-    RemoteAddress    : 192.168.1.7
-    RemotePort       : 1514
-    InterfaceAlias   : Wi-Fi
-    SourceAddress    : 192.168.1.4
-    TcpTestSucceeded : True
-
-The Wazuh Agent log also showed successful connections:
-
-    Connected to the server ([192.168.1.7]:1514/tcp).
-    Agent is now online. Process unlocked, continuing...
-
-### Finding
-
-The endpoint could communicate with the Wazuh Manager and the agent
-was able to reconnect successfully.
-
----
-
-## 4. Verify Wazuh Agent Activity
-
-The Wazuh Agent log was inspected:
-
-    Get-Content "C:\Program Files (x86)\ossec-agent\ossec.log" -Tail 100
-
-The log showed both temporary connectivity failures and subsequent
-successful reconnection.
-
-Example:
-
-    Trying to connect to server ([192.168.1.7]:1514/tcp).
-    Connected to the server ([192.168.1.7]:1514/tcp).
-    Agent is now online. Process unlocked, continuing...
-
-### Finding
-
-The agent experienced connectivity interruptions, but it was able to
-reconnect and return to an online state.
-
-This did not fully explain why recent events were not appearing in the
-Dashboard.
-
----
-
-## 5. Check Wazuh Manager Alert Output
-
-The Wazuh Manager was checked directly rather than relying only on the
-Dashboard.
-
-    sudo tail -20 /var/ossec/logs/alerts/alerts.json | \
-    jq -c 'select(.rule.id=="100101")'
-
-A new alert was present:
-
-    rule.id: 100101
-    description: Account discovery using net user from PowerShell
-    level: 7
-
-The event contained:
-
-    Host:
-    X390
-
-    User:
-    X390\tempo
-
-    Process:
-    C:\Windows\System32\net.exe
-
-    CommandLine:
-    "C:\WINDOWS\system32\net.exe" user
-
-    ParentImage:
-    C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
-
-MITRE ATT&CK mappings:
-
-    T1087.001 — Account Discovery: Local Account
-    T1059.001 — Command and Scripting Interpreter: PowerShell
-
-### Finding
-
-The Wazuh Manager was successfully processing the event and the
-custom detection rule was firing.
-
-Therefore, the detection rule itself was not the root cause.
-
----
-
-## 6. Check Wazuh Archive Telemetry
-
-Wazuh archive data was also inspected:
-
-    sudo tail -50 /var/ossec/logs/archives/archives.json | \
-    jq -c 'select(.data.win.system.providerName=="Microsoft-Windows-Sysmon")'
-
-Sysmon telemetry was present in the archive.
-
-For example, a Sysmon Event ID 2 was observed:
-
-    providerName:
-    Microsoft-Windows-Sysmon
-
-    eventID:
-    2
-
-    RuleName:
-    T1099
-
-    Image:
-    C:\Users\tempo\AppData\Local\Discord\app-1.0.9253\Discord.exe
-
-### Finding
-
-The Wazuh Manager was receiving and processing Sysmon telemetry.
-
-The investigation therefore moved further downstream toward the
-Indexer and storage layer.
-
----
-
-## 7. Check Disk Utilization
-
-The Wazuh server filesystem was inspected:
-
-    df -h
+```bash
+df -h
+```
 
 Initial result:
 
-    Filesystem      Size  Used Avail Use%
-    /dev/sda2       218G  193G   15G  94%
+```text
+/dev/sda2       218G  193G   15G  94% /
+```
 
-The root filesystem was at approximately 94% utilization.
+The root filesystem was therefore critically close to full capacity.
 
-Additional investigation showed that `/var` consumed significant space:
+The inode usage was also checked:
 
-    59G    /var
+```bash
+df -i
+```
 
-The Suricata logs were a major contributor:
+Result:
 
-    7.5G    /var/log/suricata
+```text
+/dev/sda2       14589952 1511123 13078829   11% /
+```
 
-The largest Suricata files included:
+Only approximately 11% of the available inodes were being used.
 
-    6.1G    /var/log/suricata/eve.json
-    1.2G    /var/log/suricata/fast.log
+### Finding
 
-This indicated significant disk pressure on the Wazuh server.
-
----
-
-## 8. Identify the Indexer Error
-
-The Wazuh Indexer reported:
-
-    indexer-connector: WARNING: Indexer request failed
-
-    type:
-    cluster_block_exception
-
-    reason:
-    index [wazuh-states-inventory-interfaces-mhibx]
-    blocked by:
-    [TOO_MANY_REQUESTS/12/disk usage exceeded flood-stage watermark,
-    index has read-only-allow-delete block]
-
-This provided the root-cause evidence.
-
-The Indexer had detected that disk usage exceeded its flood-stage
-watermark and protected the cluster by applying a read-only block to
-the affected index.
+The problem was related to **disk space**, not inode exhaustion.
 
 ---
 
-# Root Cause
+## Identify Major Storage Consumers
 
-The Wazuh server filesystem experienced high disk utilization.
+The root filesystem was investigated layer by layer:
 
-At approximately:
+```bash
+sudo du -xhd1 / 2>/dev/null | sort -h
+```
 
-    94% disk utilization
+Relevant results:
 
-the Wazuh Indexer reached its configured flood-stage watermark.
+```text
+5.0G    /opt
+13G     /usr
+59G     /var
+111G    /home
+191G    /
+```
 
-The Indexer consequently applied:
+The largest areas were therefore:
 
-    read_only_allow_delete
+- `/var`
+- `/home`
 
-to affected indices.
-
-This prevented normal indexing operations and resulted in missing
-recent data from the Dashboard.
-
-The issue was therefore not caused by:
-
-- Sysmon
-- the Windows endpoint
-- the Wazuh detection rule
-- the Wazuh Agent configuration
-
-The failure occurred at the storage/indexing layer.
+Further investigation was performed on both locations.
 
 ---
 
-# Remediation
+## Investigating `/var`
 
-Disk space was recovered by removing unnecessary files from the user's
-desktop Trash.
+```bash
+sudo du -xhd1 /var 2>/dev/null | sort -h
+```
 
-The following command was used:
+Relevant results:
 
-    rm -rf ~/.local/share/Trash/*
+```text
+8.3G    /var/log
+14G     /var/ossec
+36G     /var/lib
+59G     /var
+```
+
+This showed that several independent components were consuming significant storage.
+
+---
+
+## Wazuh Indexer Storage
+
+The Wazuh Indexer data directory was checked:
+
+```bash
+sudo du -xhd1 /var/lib/wazuh-indexer 2>/dev/null | sort -h
+```
+
+Result:
+
+```text
+186M    /var/lib/wazuh-indexer
+```
+
+The Wazuh Indexer data directory itself was therefore relatively small compared with the total disk usage.
+
+### Finding
+
+The flood-stage condition was **not primarily caused by the Wazuh Indexer data directory itself**.
+
+---
+
+## Wazuh Manager Storage
+
+The Wazuh Manager directory was investigated:
+
+```bash
+sudo du -xhd2 /var/ossec 2>/dev/null | sort -h | tail -30
+```
+
+A significant amount of storage was found under:
+
+```text
+14G     /var/ossec
+13G     /var/ossec/queue
+12G     /var/ossec/queue/vd
+12G     /var/ossec/queue/vd/feed
+```
+
+Additional storage was present in:
+
+```text
+978M    /var/ossec/queue/indexer
+566M    /var/ossec/logs
+386M    /var/ossec/logs/archives
+175M    /var/ossec/logs/alerts
+```
+
+### Finding
+
+The Wazuh Manager's vulnerability-detection feed storage was one of the major consumers of disk space.
+
+In particular:
+
+```text
+/var/ossec/queue/vd/feed
+```
+
+was approximately 12 GB.
+
+The directory was therefore identified as an important storage contributor, but it was not immediately deleted because it is part of Wazuh's operational data.
+
+---
+
+## Investigating Suricata Logs
+
+Because the lab also uses Suricata, its logs were investigated:
+
+```bash
+sudo du -sh /var/log/suricata/* 2>/dev/null | sort -h
+```
+
+The largest files were:
+
+```text
+1.2G    /var/log/suricata/fast.log
+6.1G    /var/log/suricata/eve.json
+```
+
+The complete Suricata log directory was approximately:
+
+```text
+7.5G    /var/log/suricata
+```
+
+### Finding
+
+Suricata logging was another major contributor to disk consumption.
+
+The `eve.json` file alone had grown to approximately 6.1 GB.
+
+This is expected in a security monitoring lab because Suricata can generate a high volume of telemetry, but log retention must be controlled to prevent the monitoring stack from exhausting the host filesystem.
+
+---
+
+## Investigating Virtual Machine Storage
+
+The libvirt storage directory was also checked:
+
+```bash
+sudo du -xhd2 /var/lib/libvirt 2>/dev/null | sort -h | tail -30
+```
+
+The VM image directory consumed:
+
+```text
+24G     /var/lib/libvirt/images
+```
+
+The image itself was:
+
+```text
+-rw------- 1 root root 26G debian13.qcow2
+```
+
+### Finding
+
+The Debian VM image was another significant consumer of the root filesystem.
+
+This file was not deleted because it is part of the lab environment.
+
+---
+
+## Investigating User Storage
+
+The user's home directory was investigated:
+
+```bash
+sudo du -xhd1 /home/wafi 2>/dev/null | sort -h
+```
+
+The largest areas included:
+
+```text
+22G     /home/wafi/Downloads
+5.3G    /home/wafi/.cache
+4.8G    /home/wafi/Wordlists
+4.1G    /home/wafi/go
+3.7G    /home/wafi/snap
+67G     /home/wafi/.local
+111G    /home/wafi
+```
+
+The `.local/share` directory was then investigated:
+
+```bash
+du -xhd1 /home/wafi/.local/share 2>/dev/null | sort -h
+```
+
+Significant results included:
+
+```text
+28G     /home/wafi/.local/share/Trash
+36G     /home/wafi/.local/share/Steam
+67G     /home/wafi/.local/share
+```
+
+### Finding
+
+A major amount of storage was being consumed by the desktop Trash:
+
+```text
+~/.local/share/Trash
+```
+
+approximately **28 GB**.
+
+This was safe to remove because it consisted of files that had already been moved to Trash.
+
+---
+
+## Remediation
+
+The Trash was permanently removed:
+
+```bash
+rm -rf ~/.local/share/Trash/*
+```
+
+The filesystem was then checked again:
+
+```bash
+df -h /
+```
 
 After cleanup:
 
-    df -h /
+```text
+/dev/sda2       218G  165G   42G  80% /
+```
 
-showed:
+Disk utilization therefore decreased from:
 
-    Filesystem      Size  Used Avail Use%
-    /dev/sda2       218G  165G   42G  80%
+```text
+94%  ->  80%
+```
 
-Disk utilization decreased from:
+and available space increased from approximately:
 
-    94% → 80%
+```text
+15 GB -> 42 GB
+```
 
-This provided sufficient free space for the Indexer to resume normal
-operation.
-
----
-
-# Validation
-
-After disk space was recovered, a new `net user` test was performed.
-
-The Wazuh Manager successfully generated rule `100101`:
-
-    rule:
-        id: 100101
-        level: 7
-        description:
-            Account discovery using net user from PowerShell
-
-The alert was written to:
-
-    /var/ossec/logs/alerts/alerts.json
-
-The event timestamp demonstrated that telemetry was being processed
-again:
-
-    Sysmon event:
-    2026-08-28 12:12:07 UTC
-
-    Wazuh alert:
-    2026-08-28T19:12:08+0700
-
-The approximately one-second processing difference confirmed that the
-event successfully traversed the Wazuh pipeline.
+This provided a significant safety margin for the Wazuh monitoring stack.
 
 ---
 
-# Final Assessment
+## Validate Index Read-Only State
 
-The original Dashboard symptom was caused by an infrastructure/storage
-condition rather than a failed detection rule.
+After freeing disk space, the Indexer state was checked using the Wazuh Indexer API.
 
-The investigation followed the telemetry path:
+The query used was:
 
-    Endpoint
-       ↓
-    Sysmon
-       ↓
-    Wazuh Agent
-       ↓
-    Wazuh Manager
-       ↓
-    Wazuh Alert
-       ↓
-    Wazuh Indexer
-       ↓
-    Wazuh Dashboard
+```bash
+curl -k -u '<WAZUH_CREDENTIALS>' \
+"https://localhost:9200/_all/_settings?filter_path=*.settings.index.blocks.read_only_allow_delete"
+```
 
-The investigation demonstrated that troubleshooting should proceed
-layer by layer instead of immediately assuming that a missing Dashboard
-event means there was no endpoint activity.
+The response was:
 
----
+```text
+{}
+```
 
-# Lessons Learned
+This indicated that no `read_only_allow_delete` blocks were returned by this query at the time of validation.
 
-## 1. "No Results" Does Not Necessarily Mean "No Activity"
+### Important Note
 
-A SOC analyst should distinguish between:
+The original warning:
 
-    No suspicious activity
+```text
+disk usage exceeded flood-stage watermark
+index has read-only-allow-delete block
+```
 
-and:
+should be treated as evidence of the condition that occurred earlier.
 
-    No telemetry available
-
-A missing event may indicate a telemetry pipeline failure.
+A historical warning does not necessarily mean that the index remains blocked after disk space has been recovered.
 
 ---
 
-## 2. Validate Telemetry at Multiple Layers
+## Validation of Wazuh Telemetry
 
-When a SIEM appears to stop receiving events, useful validation points
-include:
+The Wazuh Manager was also validated at the telemetry level.
 
-    Endpoint event log
-            ↓
-    Agent service
-            ↓
-    Agent connectivity
-            ↓
-    Manager alerts/archives
-            ↓
-    Indexer health
-            ↓
-    Dashboard
+For example, the custom account-discovery detection was still generating alerts:
 
-This helps isolate where data stops flowing.
+```bash
+sudo tail -20 /var/ossec/logs/alerts/alerts.json | \
+jq -c 'select(.rule.id=="100101")'
+```
 
----
+The resulting event contained:
 
-## 3. SIEM Health Is Part of Security Monitoring
+```text
+rule.id: 100101
+rule.description: Account discovery using net user from PowerShell
+agent.name: X390
+```
 
-Detection quality depends on the availability of the telemetry pipeline.
+The underlying Sysmon telemetry showed:
 
-A well-written detection rule is not useful if the underlying
-infrastructure cannot index and retain the events.
+```text
+Image: C:\Windows\System32\net.exe
+CommandLine: "C:\WINDOWS\system32\net.exe" user
+ParentImage: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+User: X390\tempo
+```
 
----
-
-## 4. Disk Capacity Must Be Monitored
-
-High disk utilization can affect SIEM availability.
-
-In this case, disk pressure triggered the Indexer's flood-stage
-protection mechanism and affected index write operations.
+This confirmed that telemetry was still reaching the Wazuh Manager and that the custom detection pipeline was functioning.
 
 ---
 
-# SOC Analyst Relevance
+## Additional Sysmon Validation
 
-Although this was not a malicious security incident, the investigation
-demonstrates an important SOC L1 operational skill:
+The archived telemetry was also inspected:
 
-> Distinguishing a genuine absence of security activity from a failure
-> in the monitoring pipeline.
+```bash
+sudo tail -50 /var/ossec/logs/archives/archives.json | \
+jq -c 'select(.data.win.system.providerName=="Microsoft-Windows-Sysmon")'
+```
 
-The case also demonstrates basic troubleshooting across endpoint,
-agent, manager, indexer, and dashboard components.
+A Sysmon Event ID 2 record was observed:
+
+```text
+RuleName: T1099
+Image: C:\Users\tempo\AppData\Local\Discord\app-1.0.9253\Discord.exe
+TargetFilename: C:\Users\tempo\AppData\Roaming\discord\Network\921acb93-6ad7-4fd0-94ba-c8531c58b69d.tmp
+```
+
+This provided additional evidence that Sysmon events were being collected by Wazuh.
 
 ---
 
-# Status
+## Root Cause
 
-**Resolved**
+The incident was caused by **overall root filesystem pressure**, rather than a failure of the Wazuh Indexer service itself.
 
-### Root Cause
+Multiple components contributed to the disk usage:
 
-    Wazuh Indexer flood-stage disk watermark
-            ↓
-    read_only_allow_delete
-            ↓
-    indexing disruption
-            ↓
-    missing recent Dashboard data
+| Component | Approx. Size | Role |
+|---|---:|---|
+| `/var/ossec/queue/vd/feed` | 12 GB | Wazuh vulnerability-detection feed |
+| `/var/log/suricata` | 7.5 GB | Suricata telemetry/logs |
+| `/var/lib/libvirt/images` | 24 GB | Virtual machine image |
+| `~/.local/share/Trash` | 28 GB | Deleted desktop files |
+| `/var/lib` | 36 GB | System/application data |
+| `/home/wafi` | 111 GB | User data |
 
-### Remediation
+The immediate remediation was to remove approximately 28 GB of unnecessary Trash data.
 
-    Free disk space
-            ↓
-    94% → 80%
+---
 
-### Validation
+## Lessons Learned
 
-    New Sysmon telemetry
-            ↓
-    Wazuh Manager
-            ↓
-    Detection Rule 100101
-            ↓
-    alerts.json
-            ↓
-    indexing restored
+### 1. A running service can still be unhealthy
+
+The Wazuh Indexer remained:
+
+```text
+Active: active (running)
+```
+
+but indexing operations were affected by the disk watermark.
+
+Service status alone is therefore insufficient when troubleshooting a SIEM.
+
+---
+
+### 2. Investigate the filesystem before changing application configuration
+
+Instead of immediately modifying the Wazuh Indexer configuration or watermark settings, the investigation started with:
+
+```text
+Filesystem
+    |
+    +-- Disk capacity
+    |
+    +-- Inode usage
+    |
+    +-- /var
+    |     +-- Wazuh
+    |     +-- Suricata
+    |     +-- Logs
+    |     +-- libvirt
+    |
+    +-- /home
+          +-- Cache
+          +-- Downloads
+          +-- Trash
+          +-- Steam
+```
+
+This avoided treating the symptom while ignoring the underlying storage problem.
+
+---
+
+### 3. Security telemetry can become a storage problem
+
+Security monitoring components such as:
+
+- Wazuh
+- Suricata
+- Sysmon
+- vulnerability feeds
+- archived events
+
+can generate significant amounts of data.
+
+A security lab therefore needs both:
+
+```text
+Detection Engineering
++
+Storage / Log Retention Management
+```
+
+---
+
+## Recommended Preventive Actions
+
+The lab should periodically review storage usage:
+
+```bash
+df -h
+```
+
+and identify large directories:
+
+```bash
+sudo du -xhd1 /var 2>/dev/null | sort -h
+sudo du -xhd1 /home/wafi 2>/dev/null | sort -h
+```
+
+Suricata log growth should also be monitored:
+
+```bash
+sudo du -sh /var/log/suricata
+```
+
+Wazuh storage should be reviewed periodically:
+
+```bash
+sudo du -xhd2 /var/ossec 2>/dev/null | sort -h | tail -30
+```
+
+For a long-running lab, log rotation and retention policies should be configured rather than relying on manual cleanup.
+
+---
+
+## Final Status
+
+After cleanup:
+
+```text
+Root filesystem:
+94% used -> 80% used
+
+Available space:
+15 GB -> 42 GB
+```
+
+The Wazuh Indexer remained operational, and the read-only index block query returned:
+
+```text
+{}
+```
+
+Wazuh telemetry was subsequently verified through both:
+
+- custom Wazuh alerts
+- raw Sysmon EventChannel telemetry
+
+The incident demonstrated that the Indexer warning was a consequence of host-level disk pressure and that filesystem-level investigation was necessary to identify the actual storage consumers.
