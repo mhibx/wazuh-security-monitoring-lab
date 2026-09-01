@@ -6,7 +6,7 @@ This investigation examines a legitimate PowerShell execution captured by Sysmon
 
 The purpose of this exercise is not to detect malware, but to understand how normal administrative activity generates Windows telemetry and how that telemetry is interpreted by a SIEM.
 
-The investigation also demonstrates why an alert should not be assessed solely by its severity. Multiple events need to be correlated with process lineage, command-line activity, user context, and subsequent behavior before determining whether the activity is malicious.
+The investigation also demonstrates why a security alert should not be assessed solely by its severity. Multiple events need to be correlated with process lineage, command-line activity, user context, and subsequent behavior before determining whether the activity is malicious.
 
 ---
 
@@ -62,7 +62,7 @@ The purpose is to observe what normal PowerShell startup looks like from the per
 | Time | Event |
 |------|-------|
 | 20:57:21 | PowerShell process created (Sysmon Event ID 1) |
-| 20:57:22 | PowerShell creates temporary execution policy test file (Sysmon Event ID 11) |
+| 20:57:22 | PowerShell creates a temporary execution policy test file (Sysmon Event ID 11) |
 | 20:57:22 | Wazuh Rule 92213 triggered |
 | 20:57:22 | Wazuh Rule 92200 triggered |
 
@@ -96,11 +96,13 @@ Process Create
 
 ## Step 2 — PowerShell Creates a Temporary File
 
-During startup, Windows PowerShell creates a temporary script used for execution policy validation:
+During the observed PowerShell startup, Sysmon records the creation of a temporary script named:
 
 ~~~text
 __PSScriptPolicyTest_xxxxx.ps1
 ~~~
+
+The filename and execution context are consistent with PowerShell execution-policy validation behavior.
 
 Sysmon records the file creation as:
 
@@ -191,7 +193,7 @@ PowerShell creates a temporary script named:
 __PSScriptPolicyTest_xxxxx.ps1
 ~~~
 
-during startup to validate the current execution policy.
+during the observed startup sequence.
 
 The file is created inside the user's temporary directory.
 
@@ -208,12 +210,12 @@ This is an important distinction during security investigations: the presence of
 Several indicators support a benign classification:
 
 - PowerShell was launched directly from Explorer.
-- The executed command was `Get-Process`.
+- The observed activity was limited to the `Get-Process` command.
 - No encoded commands were observed.
 - No network connections were observed.
 - No persistence mechanisms were identified.
 - No suspicious child processes were observed.
-- The temporary file matched the observed PowerShell execution policy validation behavior.
+- The temporary file matched the observed PowerShell execution-policy validation behavior.
 - The available process lineage was consistent with a normal interactive PowerShell session.
 
 ### Evidence
@@ -248,7 +250,7 @@ Future detection improvements should distinguish legitimate PowerShell execution
 
 # Lessons Learned
 
-This investigation reinforced that a high-severity alert does not automatically represent malicious activity.
+This investigation reinforced that a security alert does not automatically represent malicious activity.
 
 Before escalating an alert, an analyst should validate the surrounding context, including:
 
@@ -293,12 +295,6 @@ screenshots/
     ├── wazuh-alerts.png
     ├── process-details.png
     └── powershell-activity.png
-
-scripts/
-└── (manual PowerShell execution)
-
-rules/
-└── Default Wazuh Rules
 ~~~
 
 ---
@@ -310,3 +306,20 @@ PowerShell itself is not inherently malicious.
 Effective PowerShell monitoring requires looking at the surrounding behavior, including process lineage, command-line arguments, user context, network activity, child processes, and subsequent actions.
 
 This investigation demonstrates why security monitoring should combine automated detection with contextual analysis rather than treating every PowerShell-related alert as malicious.
+
+---
+
+# Repository Status
+
+**Current Status: Investigation Completed**
+
+- Legitimate PowerShell activity successfully simulated
+- Sysmon Process Creation telemetry observed
+- Sysmon File Creation telemetry observed
+- Wazuh Rules 92213 and 92200 validated
+- Process lineage and event timeline analyzed
+- Activity classified as benign
+- False-positive investigation documented
+- SOC analyst decision-making documented
+
+The investigation provides a benign baseline for comparison with subsequent suspicious PowerShell activity.
