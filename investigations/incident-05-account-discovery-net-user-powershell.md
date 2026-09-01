@@ -34,7 +34,7 @@ Level 7 alert
 |---|---|
 | Endpoint | `X390` |
 | Endpoint IP | `192.168.1.4` |
-| Operating System | Windows |
+| Operating System | Windows 11 |
 | Telemetry | Sysmon |
 | Sysmon Event | Event ID 1 — Process Create |
 | SIEM | Wazuh |
@@ -64,7 +64,7 @@ This is more specific than simply detecting `net.exe` or `net user`, because the
 
 ---
 
-## Attack Simulation
+## Activity Simulation
 
 The simulated activity was:
 
@@ -112,19 +112,13 @@ Description: Discovery activity spawned via powershell execution
 The rule classified the activity as:
 
 ```text
-T1087     - Account Discovery
-T1059.001 - Command and Scripting Interpreter: PowerShell
+T1087      - Account Discovery
+T1059.001  - Command and Scripting Interpreter: PowerShell
 ```
 
 However, the built-in rule was relatively generic.
 
-The objective was therefore to create a more specific local detection for:
-
-```text
-net user
-    +
-PowerShell parent process
-```
+The objective was therefore to create a more specific local detection that validates both the `net user` command and its PowerShell parent process.
 
 ---
 
@@ -141,6 +135,7 @@ The final rule was:
 ```xml
 <rule id="100101" level="7">
   <if_sid>92033</if_sid>
+  <field name="win.eventdata.commandLine" type="pcre2">(?i)\\net(?:\.exe)?["\s]+user(?:\s|$)</field>
   <field name="win.eventdata.parentImage" type="pcre2">(?i)\\powershell(?:\.exe)?$</field>
   <description>Account discovery using net user from PowerShell</description>
   <mitre>
@@ -153,15 +148,25 @@ The final rule was:
 
 ### Detection Logic
 
-The rule uses:
+The rule first builds on the existing Wazuh detection:
 
 ```xml
 <if_sid>92033</if_sid>
 ```
 
-to build on the existing Wazuh detection.
+It then validates the command line:
 
-It then evaluates:
+```text
+win.eventdata.commandLine
+```
+
+to identify:
+
+```text
+net.exe user
+```
+
+Finally, it evaluates:
 
 ```text
 win.eventdata.parentImage
@@ -169,7 +174,17 @@ win.eventdata.parentImage
 
 to confirm that the process was spawned by PowerShell.
 
-The rule therefore acts as a more specific detection layer on top of the existing rule.
+The resulting detection therefore uses three layers of context:
+
+```text
+Wazuh discovery detection
+        +
+net user command
+        +
+PowerShell parent process
+        ↓
+Specific account discovery detection
+```
 
 ---
 
@@ -216,6 +231,8 @@ This confirms the process relationship:
 powershell.exe → net.exe user
 ```
 
+Process ancestry provides useful behavioral context that would be lost if the detection only searched for the `net user` command.
+
 ---
 
 ## Troubleshooting
@@ -241,10 +258,10 @@ The investigation confirmed that:
 
 - `local_rules.xml` was being loaded
 - The correct parent rule was `92033`
-- The correct field path was `win.eventdata.parentImage`
+- The relevant Sysmon fields were present in the event
 - The custom rule could successfully match the event
 
-The final working regex field was placed on a single line:
+The final PowerShell parent condition was placed on a single line:
 
 ```xml
 <field name="win.eventdata.parentImage" type="pcre2">(?i)\\powershell(?:\.exe)?$</field>
@@ -276,7 +293,7 @@ T1087.001  - Account Discovery: Local Account
 T1059.001  - Command and Scripting Interpreter: PowerShell
 ```
 
-The final alert therefore demonstrated that the custom rule successfully matched the event.
+The final alert demonstrated that the custom rule successfully matched the expected process and command context.
 
 ---
 
@@ -342,7 +359,7 @@ Windows
                 └── T1059.001
 ```
 
-This demonstrates how a generic detection can be enriched with additional process-context information.
+This demonstrates how a generic detection can be enriched with additional process and command-line context.
 
 ---
 
@@ -398,6 +415,14 @@ ParentImage = powershell.exe
 
 provides additional behavioral context.
 
+Combining this with the command line:
+
+```text
+net.exe user
+```
+
+makes the detection more specific to the intended behavior.
+
 ---
 
 ### 2. Built-in rules can be used as detection primitives
@@ -428,17 +453,18 @@ This can make custom rules easier to maintain.
 
 The rule was developed from the actual Sysmon event structure rather than assuming the field names.
 
-The relevant field was verified from the event:
+The relevant fields were verified from the event:
 
 ```text
+win.eventdata.commandLine
 win.eventdata.parentImage
 ```
 
-This helped avoid creating a rule based on an incorrect field path.
+This helped avoid creating a rule based on incorrect field paths.
 
 ---
 
-### 4. Alert severity can be increased through contextual enrichment
+### 4. Context can increase detection specificity
 
 The original detection generated:
 
@@ -452,7 +478,7 @@ The custom detection generated:
 100101 → Level 7
 ```
 
-The higher severity represents the additional specificity provided by the custom detection.
+The higher severity reflects the additional specificity provided by the custom rule.
 
 It does not by itself mean the activity is malicious.
 
@@ -468,6 +494,7 @@ It does not by itself mean the activity is malicious.
 | PowerShell parent observed | PASS |
 | Built-in Rule 92033 triggered | PASS |
 | Custom Rule 100101 loaded | PASS |
+| Command-line condition matched | PASS |
 | Parent process condition matched | PASS |
 | Level 7 alert generated | PASS |
 | MITRE mapping generated | PASS |
@@ -488,7 +515,7 @@ executed through:
 PowerShell
 ```
 
-The final detection uses process ancestry to provide additional context and builds upon Wazuh's existing detection rule.
+The final detection uses both command-line information and process ancestry to provide additional context while building upon Wazuh's existing detection rule.
 
 The successful alert confirms the following detection chain:
 
@@ -515,7 +542,7 @@ Validate field structure
       ↓
 Reuse existing detection
       ↓
-Add contextual condition
+Add contextual conditions
       ↓
 Test and troubleshoot
       ↓
