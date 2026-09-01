@@ -135,7 +135,7 @@ This makes the execution worthy of further investigation.
 
 However, the presence of `-EncodedCommand` alone does not prove that the activity is malicious.
 
-The command must be decoded and evaluated together with the surrounding process and system activity.
+The command should be decoded and evaluated together with the surrounding process and system activity.
 
 ---
 
@@ -324,12 +324,6 @@ screenshots/
     ├── wazuh-detection-details.png
     ├── decoded-payload.png
     └── process-chain.png
-
-scripts/
-└── (benign encoded PowerShell command)
-
-rules/
-└── Default Wazuh Rule 92057
 ~~~
 
 ---
@@ -343,4 +337,6 @@ rules/
 - Wazuh Rule 92057 validated
 - MITRE ATT&CK T1059.001 identified
 - Windows Event Viewer and Wazuh telemetry correlated
+- Encoded payload analyzed
 - Investigation workflow documented
+- Simulated activity confirmed as benign
