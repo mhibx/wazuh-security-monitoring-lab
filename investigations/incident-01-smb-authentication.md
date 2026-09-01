@@ -17,6 +17,7 @@ The main focus of this exercise was not simply generating an alert, but followin
 - Verify that the Wazuh Agent collects the event
 - Investigate the resulting Wazuh alert
 - Trace the activity from the attacker machine to the SIEM
+- Understand how NAT affects source IP visibility
 - Evaluate different tools for generating repeated SMB authentication attempts
 
 ---
@@ -24,30 +25,44 @@ The main focus of this exercise was not simply generating an alert, but followin
 ## Lab Architecture
 
 ~~~text
-                    +----------------------+
-                    |    Kali Linux VM     |
-                    | 192.168.122.64       |
-                    +----------+-----------+
-                               |
-                     SMB Authentication
-                               |
-                               ▼
-                    +----------------------+
-                    | Windows 11 Endpoint  |
-                    | 192.168.1.4          |
-                    | Wazuh Agent          |
-                    +----------+-----------+
-                               |
-                         Security Event
-                         Event ID 4625
-                               |
-                               ▼
-                    +----------------------+
-                    | Wazuh Manager        |
-                    | Ubuntu               |
-                    | 192.168.1.7          |
-                    +----------------------+
+                         +----------------------+
+                         |    Kali Linux VM     |
+                         | 192.168.122.64       |
+                         |                      |
+                         | SMB Client           |
+                         +----------+-----------+
+                                    |
+                                    | libvirt NAT
+                                    ▼
+                         +----------------------+
+                         |    Ubuntu Host       |
+                         | 192.168.1.7          |
+                         |                      |
+                         | Wazuh Manager        |
+                         | Wazuh Dashboard      |
+                         | Suricata             |
+                         +----------+-----------+
+                                    |
+                                    | LAN
+                                    ▼
+                         +----------------------+
+                         |   Windows 11         |
+                         | 192.168.1.4          |
+                         |                      |
+                         | Wazuh Agent          |
+                         | Sysmon               |
+                         +----------------------+
 ~~~
+
+### Network Consideration
+
+The Kali Linux VM uses libvirt NAT networking.
+
+Although the authentication attempt originates from Kali (`192.168.122.64`), the Windows endpoint observes the connection as originating from the Ubuntu host (`192.168.1.7`), which acts as the NAT gateway.
+
+This explains why Windows Security Event 4625 records `192.168.1.7` as the source IP while identifying the workstation as `KALI-ATTACKER`.
+
+This distinction is important during investigation because the source IP visible in endpoint telemetry does not always represent the original system that initiated the activity.
 
 ---
 
@@ -62,6 +77,9 @@ The main focus of this exercise was not simply generating an alert, but followin
 | Protocol | SMB |
 | Windows Event | 4625 |
 | Authentication | NTLM |
+| Kali IP | 192.168.122.64 |
+| Ubuntu IP | 192.168.1.7 |
+| Windows IP | 192.168.1.4 |
 
 ---
 
@@ -152,6 +170,16 @@ The corresponding Windows Security event was reviewed to understand the authenti
 
 These fields provided additional context beyond the Wazuh alert itself, including the authentication package, workstation name, target username, and reason for the failure.
 
+### Source IP Analysis
+
+The source IP recorded by Windows was `192.168.1.7`, which corresponds to the Ubuntu host rather than the Kali VM.
+
+This is expected because the Kali VM is connected through libvirt NAT. The Ubuntu host performs the network address translation before the traffic reaches the Windows endpoint.
+
+The workstation field, `KALI-ATTACKER`, provides additional context linking the authentication attempt to the Kali-based test environment.
+
+This demonstrates why a SOC analyst should avoid interpreting a source IP in isolation and should consider the surrounding network topology and other available telemetry.
+
 ---
 
 ## Wazuh Alert Analysis
@@ -180,9 +208,20 @@ The Wazuh alert and the Windows event provided consistent evidence that the auth
 
 ~~~text
 Kali Linux
+192.168.122.64
+    │
+    │ SMB Authentication Attempt
+    ▼
+libvirt NAT
     │
     ▼
-SMB Authentication Attempt
+Ubuntu Host
+192.168.1.7
+    │
+    │ Translated Network Connection
+    ▼
+Windows 11
+192.168.1.4
     │
     ▼
 Windows Security Event 4625
@@ -204,16 +243,18 @@ SOC Investigation
 
 # MITRE ATT&CK
 
-The activity simulated in this lab represents a failed authentication attempt and can be relevant to credential access scenarios such as password guessing or brute-force activity.
+This investigation demonstrates a single failed SMB authentication attempt.
 
-Potential ATT&CK mapping:
+A single failed authentication event alone is not sufficient to claim a brute-force attack.
 
-- **T1110 — Brute Force** *(future enhancement)*
+Potential ATT&CK mapping for repeated authentication activity includes:
+
+- **T1110 — Brute Force**
 - **TA0006 — Credential Access**
 
-> Note:
->
-> Wazuh's default rule maps Event ID 4625 differently. The ATT&CK mapping above is used as an educational representation of the simulated attack scenario. Custom MITRE mapping will be implemented in future detection engineering exercises.
+However, T1110 will be mapped to a subsequent investigation only when repeated authentication attempts are successfully simulated and detected.
+
+This distinction prevents the investigation from overstating what the available evidence demonstrates.
 
 ---
 
@@ -226,7 +267,9 @@ The investigation confirmed that:
 - The Wazuh Agent successfully collected the event.
 - Wazuh Rule 60122 detected the failed authentication.
 - The alert contained useful investigation context, including the source IP, workstation name, authentication package, and username.
-- Windows Event Viewer provided additional details about the authentication failure that were useful for investigation.
+- Windows Event Viewer provided additional details about the authentication failure.
+- The source IP observed by Windows was the Ubuntu NAT gateway (`192.168.1.7`) rather than the Kali VM address (`192.168.122.64`).
+- The workstation information provided additional context for identifying the originating test system.
 
 ---
 
@@ -286,7 +329,7 @@ The Windows SMB Server logs recorded additional events:
 
 The authentication session terminated before username validation, preventing repeated Event ID 4625 entries from being generated.
 
-Further investigation is required to determine whether this behavior is related to compatibility between NetExec/Hydra and the Windows 11 Build 26100 SMB implementation.
+Further investigation may be required to determine whether this behavior is related to compatibility between NetExec/Hydra and the Windows 11 Build 26100 SMB implementation.
 
 ---
 
@@ -300,6 +343,8 @@ Key takeaways include:
 - Windows can record authentication failures across multiple logging channels.
 - Security Event ID 4625 provides useful information for investigating failed authentication attempts.
 - Windows Security logs and Microsoft-Windows-SMBServer logs can provide complementary evidence.
+- NAT can cause the source IP observed by an endpoint to differ from the original attacker's IP.
+- Source IP should be interpreted together with workstation, username, authentication type, and network topology.
 - Different authentication tools may interact with modern Windows SMB implementations differently.
 - Troubleshooting an unsuccessful attack simulation is also part of security engineering.
 - A SOC investigation should validate assumptions using multiple sources rather than relying on a single tool or alert.
@@ -308,12 +353,10 @@ Key takeaways include:
 
 # Future Improvements
 
-- Investigate SMB authentication behavior on Windows 11 Build 26100.
-- Test additional SMB authentication tools.
-- Create custom Wazuh detection rules for repeated failed logon attempts.
-- Simulate password spraying and brute-force activity after resolving tool compatibility issues.
-- Correlate Windows Security Event 4625 and SMB Server events into a higher-confidence detection.
-- Visualize authentication trends using Wazuh dashboards.
+- Correlate repeated Windows Security Event 4625 events into a higher-confidence authentication attack detection.
+- Investigate controlled password spraying and brute-force patterns.
+- Improve visualization of authentication failures using Wazuh dashboards.
+- Correlate Windows Security Event 4625 with SMB Server events where appropriate.
 
 ---
 
@@ -326,6 +369,7 @@ Key takeaways include:
 - Windows Security Event ID 4625 collected
 - Wazuh Rule 60122 validated
 - Investigation evidence documented
+- NAT behavior analyzed
 - Multiple SMB authentication tools evaluated
 
-Advanced attack simulation, including password spraying and brute-force scenarios, remains planned for a future iteration after the SMB client compatibility issues are investigated.
+Advanced attack simulation, including password spraying and brute-force scenarios, remains planned for a future iteration.
