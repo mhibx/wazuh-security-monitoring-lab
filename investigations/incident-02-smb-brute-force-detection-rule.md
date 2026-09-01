@@ -39,9 +39,11 @@ The objective is to demonstrate how individual Windows Security Event ID 4625 ev
 
 | Host | IP Address |
 |------|------------|
-| Kali Attacker | 192.168.1.7 |
+| Kali Attacker | 192.168.122.64 |
 | Windows 11 | 192.168.1.4 |
 | Wazuh Server | 192.168.1.7 |
+
+Because Kali traffic is NATed through the Ubuntu host, Windows may record 192.168.1.7 as the source IP for the SMB authentication attempts.
 
 ---
 
