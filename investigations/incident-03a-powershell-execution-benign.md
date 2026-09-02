@@ -90,7 +90,7 @@ Process Create
 
 ### Evidence
 
-![Sysmon Process Creation](screenshots/incident-03a/sysmon-process-create.png)
+![Sysmon Process Creation](../screenshots/incident-03a/sysmon-process-create.png)
 
 ---
 
@@ -113,7 +113,7 @@ File Create
 
 ### Evidence
 
-![Sysmon File Creation](screenshots/incident-03a/sysmon-file-create.png)
+![Sysmon File Creation](../screenshots/incident-03a/sysmon-file-create.png)
 
 ---
 
@@ -135,7 +135,7 @@ Scripting file created under Windows Temp or User folder
 
 ### Evidence
 
-![Wazuh Alerts](screenshots/incident-03a/wazuh-alerts.png)
+![Wazuh Alerts](../screenshots/incident-03a/wazuh-alerts.png)
 
 The alerts indicate that the observed file-creation behavior matches patterns that can also occur during malicious activity.
 
@@ -181,7 +181,7 @@ This process lineage provides important context for determining whether the acti
 
 ### Evidence
 
-![Process Details](screenshots/incident-03a/process-details.png)
+![Process Details](../screenshots/incident-03a/sysmon-file-create.png)
 
 ---
 
