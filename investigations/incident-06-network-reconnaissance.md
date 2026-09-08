@@ -106,7 +106,7 @@ The purpose of this scan was not to identify a vulnerable service, but to genera
 
 ### Evidence
 
-![Nmap scan](screenshots/incident-06/nmap-scan.png)
+![Nmap scan](.../screenshots/incident-06/nmap-scan.png)
 
 ---
 
