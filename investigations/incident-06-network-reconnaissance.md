@@ -106,7 +106,7 @@ The purpose of this scan was not to identify a vulnerable service, but to genera
 
 ### Evidence
 
-![Nmap scan](.../screenshots/incident-06/nmap-scan.png)
+![Nmap scan](../screenshots/incident-06/nmap-scan.png)
 
 ---
 
@@ -140,7 +140,7 @@ A successful TCP connection was not established.
 
 ### Evidence
 
-![Wireshark SYN scan](screenshots/incident-06/wireshark-syn-scan.png)
+![Wireshark SYN scan](../screenshots/incident-06/wireshark-syn-scan.png)
 
 ---
 
@@ -167,9 +167,9 @@ This provided an additional packet-level validation that the response correspond
 
 ### Evidence
 
-![Wireshark SYN sequence](screenshots/incident-06/wireshark-syn-sequence.png)
+![Wireshark SYN sequence](../screenshots/incident-06/wireshark-syn-sequence.png)
 
-![Wireshark RST ACK](screenshots/incident-06/wireshark-rst-ack.png)
+![Wireshark RST ACK](../screenshots/incident-06/wireshark-rst-ack.png)
 
 ---
 
@@ -304,7 +304,7 @@ The alert was visible in the Wazuh `wazuh-alerts-*` index after the Filebeat pip
 
 ### Evidence
 
-![Wazuh Suricata alert](screenshots/incident-06/wazuh-suricata-alert.png)
+![Wazuh Suricata alert](../screenshots/incident-06/wazuh-suricata-alert.png)
 
 ---
 
