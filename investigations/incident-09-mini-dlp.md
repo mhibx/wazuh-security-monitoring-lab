@@ -240,32 +240,32 @@ The USB directory is a **simulated restricted destination** for lab purposes.
 
 ### Rule creation
 
-![Rule 100301 added](screenshots/01-rule-100301-added.png)
+![Rule 100301 added](../screenshots/incident-09/01-rule-100301-added.png)
 
 ### Wazuh logtest
 
-![Wazuh logtest matched Rule 100301](screenshots/02-wazuh-logtest-rule-match.png)
+![Wazuh logtest matched Rule 100301](../screenshots/incident-09/02-wazuh-logtest-rule-match.png)
 
 ### Wazuh Manager restart
 
-![Wazuh Manager restarted successfully](screenshots/03-wazuh-manager-restarted.png)
+![Wazuh Manager restarted successfully](../screenshots/incident-09/03-wazuh-manager-restarted.png)
 
 ### Positive DLP policy test
 
-![Sensitive data sent to simulated USB](screenshots/04-positive-test-sensitive-to-usb.png)
+![Sensitive data sent to simulated USB](../screenshots/incident-09/04-positive-test-sensitive-to-usb.png)
 
 ### Wazuh Level 10 alert
 
-![Wazuh Rule 100301 alert](screenshots/05-wazuh-alert-rule-100301.png)
+![Wazuh Rule 100301 alert](../screenshots/incident-09/05-wazuh-alert-rule-100301.png)
 
 ### Negative test: sensitive to Internal
 
-![Sensitive data to allowed Internal destination](screenshots/06-negative-sensitive-to-internal.png)
+![Sensitive data to allowed Internal destination](../screenshots/incident-09/06-negative-sensitive-to-internal.png)
 
 ### Negative test: non-sensitive to USB
 
-![Non-sensitive data to restricted USB destination](screenshots/07-negative-nonsensitive-to-usb.png)
+![Non-sensitive data to restricted USB destination](../screenshots/incident-09/07-negative-nonsensitive-to-usb.png)
 
 ### Negative alert verification
 
-![Negative test verification in Wazuh alerts](screenshots/08-negative-alert-check.png)
+![Negative test verification in Wazuh alerts](../screenshots/incident-09/08-negative-alert-check.png)
